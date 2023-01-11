@@ -132,7 +132,11 @@
     <ClCompile Include="CpuSingle.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Speed.txt" />
+    <Text Include="Analysis\Speed - i5 2500K.txt" />
+    <Text Include="Analysis\Speed - R9 5900HX.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SetUp.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
