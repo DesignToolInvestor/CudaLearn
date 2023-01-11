@@ -4,25 +4,13 @@
 
 #include <iostream>
 #include <cmath>
-#include <span>
 
 #include "SeedManagement.h"
 #include "RandSeq.h"
 
+#include "../Library/AddReduceSerial.h"
+
 using namespace std;
-
-// ************************************
-// ToDo:  Switch to C++20
-// ToDo:  Use a span
-template<typename ElemT, typename AccumT = ElemT>
-AccumT ReduceAddCpu(span<const ElemT> data)
-{
-  AccumT partSum = 0;
-  for (const ElemT& elem : data)
-    partSum += (AccumT)elem;
-
-  return partSum;
-}
 
 // ************************************
 int main()
