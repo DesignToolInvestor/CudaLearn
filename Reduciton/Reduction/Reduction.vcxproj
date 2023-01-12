@@ -16,6 +16,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9A7B7A4A-FE77-40CC-A27C-CA91D26F4085}</ProjectGuid>
     <RootNamespace>TestProject</RootNamespace>
+    <ProjectName>GPU</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
