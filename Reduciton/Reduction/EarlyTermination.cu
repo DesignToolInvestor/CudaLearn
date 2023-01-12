@@ -26,7 +26,7 @@ typedef int ElemT;
 __global__ void AddReduceInPlace(
   ElemT* data, unsigned elemPerArray, unsigned elemPerBlock, ElemT* partSum)
 {
-  // ToDo:  compart sppeds with using size_t
+  // ToDo:  compare speeds with using size_t
   unsigned block = blockIdx.x;
   unsigned blockIndex = block * elemPerBlock;
 
@@ -106,7 +106,7 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
     goto Error;
   }
 
-  // Compute gird poaramiters
+  // Compute gird parameters
   const unsigned numBlock = 2;
   const unsigned elemPerBlock = (dataSize - 1) / numBlock + 1;
   const unsigned threadPerBlock = (elemPerBlock - 1) / 2 + 1;
@@ -176,9 +176,6 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
     fprintf(stderr, "cudaMemcpy failed!\n");
     goto Error;
   }
-
-  for (unsigned i = 0; i < 17; i++)
-    cout << "MungedData[" << i << "] = " << mungedData[i] << '\n';
 
 Error:
   if (data_d != NULL)
