@@ -1,5 +1,5 @@
 ﻿/*
-  K e r n e l . c u
+  G p u T e s t . c u
 */
 
 #include <cuda.h>
@@ -13,27 +13,30 @@
 #include <iostream>
 #include <random>
 
+// ToDo:  not picking up environment variable
+//#define KENNETH_LIB_DIR F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib
+//#include "KENNETH_LIB_DIR\SeedManagement.h"
+
+#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\SeedManagement.h"
+#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\RandSeq.h"
+
+#include "../Library/AddReduceSerial.h"
+
 using namespace std;
 
-typedef mt19937_64 CoreGenT;
-
-typedef int ElemT;
-
 // ****************************************************************************
-// ToDo:  Won't compile with templates ???
-//template<typename ElemT>
-
-__global__ void AddReduceInPlace(
-  ElemT* data, unsigned elemPerArray, unsigned elemPerBlock, ElemT* partSum)
+template<typename ElemT>
+  __global__ void AddReduceInPlace(
+    ElemT* data, unsigned elemPerArray, unsigned elemPerBlock, ElemT* partSum)
 {
   // ToDo:  compare speeds with using size_t
   unsigned block = blockIdx.x;
   unsigned blockIndex = block * elemPerBlock;
 
-  unsigned thread = threadIdx.x; // i.e., ofsest within block
+  unsigned thread = threadIdx.x; // i.e., oftest within block
   unsigned baseArrayIndex = blockIndex + thread;
 
-  // Thge last block may not be a full array
+  // The last block may not be a full array
   unsigned elemInThisBlock = elemPerBlock;
   unsigned numActiveThread = blockDim.x;
 
@@ -50,11 +53,6 @@ __global__ void AddReduceInPlace(
 
     __syncthreads();
 
-    if (thread == 0)
-      printf(
-        "Block Num = %d; Block Size = %d; NumThread = %d; Base Index = %d\n",
-        (unsigned)block, (unsigned)elemInThisBlock, (unsigned)numActiveThread, (unsigned)baseArrayIndex);
-
     // Higher numbered threads will finish early
     unsigned count = 0;
     while ((thread < numActiveThread) && (1 < numActiveThread)) {
@@ -68,11 +66,6 @@ __global__ void AddReduceInPlace(
       }
       __syncthreads();
 
-      if (thread == 0)
-        printf(
-          "Block Num = %d; Active Array Size = %d; NumThread = %d\n",
-          (unsigned)block, (unsigned)numActiveElem, (unsigned)numActiveThread);
-
       count++;
     }
   }
@@ -80,15 +73,6 @@ __global__ void AddReduceInPlace(
   // copy partSum back
   if (thread == 0)
     partSum[block] = data[baseArrayIndex];
-}
-
-// ************************************
-ElemT ReduceAddCpu(const ElemT* data, size_t size)
-{
-  ElemT partSum = 0;
-  for (size_t i = 0; i < size; i++)
-    partSum += data[i];
-  return partSum;
 }
 
 // ****************************************************************************
@@ -110,11 +94,6 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
   const unsigned numBlock = 2;
   const unsigned elemPerBlock = (dataSize - 1) / numBlock + 1;
   const unsigned threadPerBlock = (elemPerBlock - 1) / 2 + 1;
-
-  cout << "Num Block = " << numBlock << '\n';
-  cout << "Elem per Block = " << elemPerBlock << '\n';
-  cout << "Tread per Block = " << threadPerBlock << '\n';
-  cout << "Actual Number of Thread = " << numBlock * threadPerBlock << "\n\n";
 
   // Allocate GPU buffers for data and partSum  
   const size_t dataBytes = dataSize * sizeof(ElemT);
@@ -164,7 +143,7 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
     goto Error;
   }
   
-  // Print poartal sum
+  // Print partial sum
   for (unsigned i = 0; i < numBlock; i++)
     cout << "Partial Sum " << i << " = " << partSum[i] << '\n';
   result = ReduceAddCpu(partSum, numBlock);
@@ -189,39 +168,30 @@ Error:
 // ************************************
 int main()
 {
-  constexpr size_t dataSize = 17;
-  ElemT data[dataSize] = { 0 };
+  constexpr size_t minSize = 1;
+  constexpr size_t maxSize = 100;
 
-  // fill data
-  constexpr uint64_t seed = 0;
-  constexpr float low = 0;
-  constexpr float high = 1;
+  for (size_t size{ minSize }; size <= maxSize; size++) {
+    int* data = new int[size];
+    for (size_t i = 0; i < size; i++)
+      data[i] = i;
 
-  CoreGenT coreGen(seed);
-  uniform_real_distribution<float> dist(low, high);
+    int result;
+    cudaError_t cudaStatus = ReduceAddGpu<int>(data, size, result);
+    delete[] data;
 
-  //for (ElemT& elem : data)
-  //  elem = dist(coreGen);
-  for (size_t i = 0; i < dataSize; i++)
-    data[i] = i;
+    cudaStatus = cudaDeviceReset();
+    if (cudaStatus != cudaSuccess) {
+      fprintf(stderr, "cudaDeviceReset failed!");
+      return 1;
+    }
 
-  // Add vectors in parallel.
-  ElemT resultGpu;
-
-  cudaError_t cudaStatus = ReduceAddGpu(data, dataSize, resultGpu);
-  cout << "GPU Result = " << resultGpu << '\n';
-
-  // cudaDeviceReset must be called before exiting in order for profiling and
-  // tracing tools such as Nsight and Visual Profiler to show complete traces.
-  cudaStatus = cudaDeviceReset();
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaDeviceReset failed!");
-    return 1;
+    if (result != (size - 1) * size / 2) {
+      fprintf(stderr, "Got wrong answer!");
+      return 1;
+    }
   }
 
-  // Check result
-  ElemT resultCpu = ReduceAddCpu(data, dataSize);
-  cout << "CPU Result = " << resultCpu << '\n';
 
   return 0;
 }
