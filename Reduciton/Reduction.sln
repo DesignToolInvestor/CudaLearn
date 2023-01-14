@@ -12,7 +12,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Library", "Library\Library.vcxitems", "{CF01417F-D99D-4C0C-9BD1-504FA5B528F3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GPU", "GPU\Gpu.vcxproj", "{9A7B7A4A-FE77-40CC-A27C-CA91D26F4085}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GpuTest", "GpuTest\GpuTest.vcxproj", "{9A7B7A4A-FE77-40CC-A27C-CA91D26F4085}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CokieTest", "CokieTest\CokieTest.vcxproj", "{CAB998B6-5833-4AC9-A3C8-1B490491E593}"
 EndProject
