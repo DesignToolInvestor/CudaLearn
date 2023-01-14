@@ -17,8 +17,13 @@
 //#define KENNETH_LIB_DIR F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib
 //#include "KENNETH_LIB_DIR\SeedManagement.h"
 
-#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\SeedManagement.h"
-#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\RandSeq.h"
+// For family room
+//#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\SeedManagement.h"
+//#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\RandSeq.h"
+
+// For Kenneth lapotoip
+#include "C:\Users\kenne\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\SeedManagement.h"
+#include "C:\Users\kenne\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\RandSeq.h"
 
 #include "../Library/AddReduceSerial.h"
 
@@ -144,8 +149,6 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
   }
   
   // Print partial sum
-  for (unsigned i = 0; i < numBlock; i++)
-    cout << "Partial Sum " << i << " = " << partSum[i] << '\n';
   result = ReduceAddCpu(partSum, numBlock);
 
   // Print munged data
@@ -189,9 +192,9 @@ int main()
     if (result != (size - 1) * size / 2) {
       fprintf(stderr, "Got wrong answer!");
       return 1;
-    }
+    } else
+      fprintf(stderr, "Size = %d passed\n", size);
   }
-
 
   return 0;
 }
