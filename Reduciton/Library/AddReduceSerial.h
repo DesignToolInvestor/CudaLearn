@@ -7,21 +7,11 @@
 #include <span>
 
 template<typename ElemT, typename AccumT = ElemT>
-AccumT ReduceAddCpu(std::span<const ElemT> data)
+AccumT ReduceAddCpu(ElemT* data, unsigned numElem)
 {
   AccumT partSum = 0;
-  for (const ElemT& elem : data)
-    partSum += (AccumT)elem;
+  for (unsigned i{ 0 }; i < numElem; i++)
+    partSum += (AccumT)data[i];
 
   return partSum;
 }
-
-//template<typename ElemT, typename AccumT = ElemT>
-//AccumT ReduceAddGpu(data)
-//{
-//  AccumT partSum = 0;
-//  for (const ElemT& elem : data)
-//    partSum += (AccumT)elem;
-//
-//  return partSum;
-//}
