@@ -5,10 +5,7 @@
 #pragma once
 
 #include <cstdio>
-
-#include <cuda.h>
 #include "cuda_runtime.h"
-
 #include "devInfo.cuh"
 
 // ****************************************************************************
@@ -17,7 +14,7 @@
 void DevInfo::CheckOk(const cudaError_t status)
 {
   // ToDo:  Want to halt the debugger, but need to decide on an exception pattern
-  if (status == CUDA_SUCCESS)
+  if (status != CUDA_SUCCESS)
     abort();
 }
 
@@ -39,6 +36,14 @@ DevInfo::DevInfo() {
   cudaDeviceProp devProp;
   CheckOk(cudaGetDeviceProperties(&devProp, 0));
 
+  // Get stuff in devProp
+  numSm = devProp.multiProcessorCount;
+  compClassMajor = devProp.major;
+  compClassMinor = devProp.minor;
+
+  maxBlockPerSm = devProp.maxBlocksPerMultiProcessor;
+  maxThreadPerSm = devProp.maxThreadsPerMultiProcessor;
+
   // F32 cores per SM
   typedef struct {
     int major, minor, f32Cores;
@@ -50,11 +55,11 @@ DevInfo::DevInfo() {
     {5,0, 128}, {5,2, 128}, {5,3, 128},
     {6,0,  64}, {6,1, 128}, {6,2, 128},
     {7,0,  64}, {7,2,  64}, {7,5,  64},
-    {8,0,  64}, {8,6, 128}, {8,7, 128},
+    {8,0,  64}, {8,6, 128}, {8,9, 128},
     {9,0, 128} };
 
   int i = 0;
-  while ((i < numVer) && ((smInfo[i].major != devProp.major) || (smInfo[i].minor != devProp.minor)))
+  while ((i < numVer) && ((smInfo[i].major != compClassMajor) || (smInfo[i].minor != compClassMinor)))
     i++;
 
   if (i == numVer)
@@ -70,7 +75,32 @@ unsigned DevInfo::NumDev() const
   return numDev;
 }
 
+unsigned DevInfo::NumSm() const
+{
+  return numSm;
+}
+
+unsigned DevInfo::CompClassMajor() const
+{
+  return compClassMajor;
+}
+
+unsigned DevInfo::CompClassMinor() const
+{
+  return compClassMinor;
+}
+
 unsigned DevInfo::NumF32CorePerSm() const
 {
   return numF32CorePerSm;
 };
+
+unsigned DevInfo::MaxBlockPerSm() const
+{
+  return maxBlockPerSm;
+}
+
+unsigned DevInfo::MaxThreadPerSm() const
+{
+  return maxThreadPerSm;
+}
