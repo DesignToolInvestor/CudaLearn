@@ -41,8 +41,9 @@ DevInfo::DevInfo() {
   compClassMajor = devProp.major;
   compClassMinor = devProp.minor;
 
-  maxBlockPerSm = devProp.maxBlocksPerMultiProcessor;
+  maxThreadPerBlock = devProp.maxThreadsPerBlock;
   maxThreadPerSm = devProp.maxThreadsPerMultiProcessor;
+  maxBlockPerSm = devProp.maxBlocksPerMultiProcessor;
 
   // F32 cores per SM
   typedef struct {
@@ -95,12 +96,17 @@ unsigned DevInfo::NumF32CorePerSm() const
   return numF32CorePerSm;
 };
 
-unsigned DevInfo::MaxBlockPerSm() const
+unsigned DevInfo::MaxThreadPerBlock() const
 {
-  return maxBlockPerSm;
+  return maxThreadPerBlock;
 }
 
 unsigned DevInfo::MaxThreadPerSm() const
 {
   return maxThreadPerSm;
+}
+
+unsigned DevInfo::MaxBlockPerSm() const
+{
+  return maxBlockPerSm;
 }
