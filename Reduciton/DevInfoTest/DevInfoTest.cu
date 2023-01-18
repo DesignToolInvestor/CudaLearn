@@ -21,6 +21,14 @@ int main()
   else if (1 < numDev)
     cout << "Haven't implemented code for multiple Cuba devices\n";
   else {
-    cout << devInfo.NumF32CorePerSm() << '\n';
+    cout << devInfo.NumDev() << " GPUs\n";
+    cout << devInfo.NumSm() << " SMs\n\n";
+
+    cout << "  Computation class = " << devInfo.CompClassMajor() << '.' << 
+      devInfo.CompClassMinor() << '\n';
+    cout << "  F32 cores per SM = " << devInfo.NumF32CorePerSm() << '\n';
+
+    cout << "  Max blocks per SM = " << devInfo.MaxBlockPerSm() << '\n';
+    cout << "  Max thread per SM = " << devInfo.MaxThreadPerSm() << '\n';
   }
 }
