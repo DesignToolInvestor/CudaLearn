@@ -2,87 +2,25 @@
   G p u T e s t . c u
 */
 
-#include <cuda.h>
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+
+#include <iostream>
 
 #include <stdio.h>
 #include <stddef.h>
 
-#include <format>
-#include <iostream>
-#include <random>
+#include <cuda.h>
+#include "cuda_runtime.h"
 
-// ToDo:  not picking up environment variable
-//#define KENNETH_LIB_DIR F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib
-//#include "KENNETH_LIB_DIR\SeedManagement.h"
-
-// For family room
-//#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\SeedManagement.h"
-//#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\RandSeq.h"
-
-// For Kenneth lapotoip
-#include "C:\Users\kenne\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\SeedManagement.h"
-#include "C:\Users\kenne\GitHub\MANet-Sim\Lib\KennethLib\KennethLib\RandSeq.h"
-
-#include "../Library/AddReduceSerial.h"
+#include "../Library/ReduceAdd.h"
+#include "GridHelper.cuh"
+#include "EarlyTerm.cuh"
 
 using namespace std;
 
 // ****************************************************************************
 template<typename ElemT>
-  __global__ void AddReduceInPlace(
-    ElemT* data, unsigned elemPerArray, unsigned elemPerBlock, ElemT* partSum)
-{
-  // ToDo:  compare speeds with using size_t
-  unsigned block = blockIdx.x;
-  unsigned blockIndex = block * elemPerBlock;
-
-  unsigned thread = threadIdx.x; // i.e., oftest within block
-  unsigned baseArrayIndex = blockIndex + thread;
-
-  // The last block may not be a full array
-  unsigned elemInThisBlock = elemPerBlock;
-  unsigned numActiveThread = blockDim.x;
-
-  if (block == gridDim.x - 1) {
-    elemInThisBlock = elemPerArray - blockIndex;
-    numActiveThread = (elemInThisBlock - 1) / 2 + 1;
-  }
-
-  // Do this thread's computation
-  unsigned otherBlockIndex = thread + numActiveThread;
-  if (otherBlockIndex < elemInThisBlock) {
-    unsigned otherArrayIndex = baseArrayIndex + numActiveThread;
-    data[baseArrayIndex] += data[otherArrayIndex];
-
-    __syncthreads();
-
-    // Higher numbered threads will finish early
-    unsigned count = 0;
-    while ((thread < numActiveThread) && (1 < numActiveThread)) {
-      unsigned numActiveElem = numActiveThread;
-      numActiveThread = (numActiveElem + 1) >> 1;
-
-      unsigned otherBlockIndex = thread + numActiveThread;
-      if (otherBlockIndex < numActiveElem) {
-        unsigned otherArrayIndex = baseArrayIndex + numActiveThread;
-        data[baseArrayIndex] += data[otherArrayIndex];
-      }
-      __syncthreads();
-
-      count++;
-    }
-  }
-
-  // copy partSum back
-  if (thread == 0)
-    partSum[block] = data[baseArrayIndex];
-}
-
-// ****************************************************************************
-template<typename ElemT>
-cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
+cudaError_t ReduceAddGpu(
+  ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock)
 {
   ElemT* data_d = NULL;
   ElemT* partSum_d = NULL;
@@ -95,13 +33,20 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
     goto Error;
   }
 
-  // Compute gird parameters
-  const unsigned numBlock = 2;
-  const unsigned elemPerBlock = (dataSize - 1) / numBlock + 1;
-  const unsigned threadPerBlock = (elemPerBlock - 1) / 2 + 1;
+  // Compute the grid size
+  cudaDeviceProp devProp;
+  cudaStatus = cudaGetDeviceProperties(&devProp, 0);
+  if (cudaStatus != cudaSuccess) {
+    fprintf(stderr, "Didn't get device properties!\n");
+    goto Error;
+  }
+
+  unsigned numThread = (numElem - 1) / 2 + 1;
+  dim3 grid = GridSizeSimple(numThread, threadPerBlock, devProp);
+  unsigned numBlock = grid.x * grid.y * grid.z;
 
   // Allocate GPU buffers for data and partSum  
-  const size_t dataBytes = dataSize * sizeof(ElemT);
+  const size_t dataBytes = numElem * sizeof(ElemT);
   cudaStatus = cudaMalloc((void**) &data_d, dataBytes);
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMalloc failed!\n");
@@ -123,7 +68,12 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
   }
 
   // Launch a kernel on the GPU with one thread for each element.
-  AddReduceInPlace <<< numBlock, threadPerBlock >>> (data_d, dataSize, elemPerBlock, partSum_d);
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  cudaEventRecord(start);
+  AddReduceEarlyTerm <<< grid, threadPerBlock >>> (partSum_d, data_d, numElem);
 
   // Check for any errors launching the kernel
   cudaStatus = cudaGetLastError();
@@ -140,16 +90,23 @@ cudaError_t ReduceAddGpu(const ElemT* data, size_t dataSize, ElemT& result)
     goto Error;
   }
 
+  cudaEventRecord(stop);
+  float time = cudaEventElapsedTime(&time, start,stop);
+  time *= 1e3;
+
+  cout << numElem << ", " << threadPerBlock << ", " << time << '\n';
+
   // Copy output vector from GPU buffer to host memory.
-  ElemT partSum[numBlock];
+  ElemT* partSum = new ElemT[numBlock];
   cudaStatus = cudaMemcpy(partSum, partSum_d, resultBytes, cudaMemcpyDeviceToHost);
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMemcpy failed!\n");
     goto Error;
   }
+  delete[] partSum;
   
   // Print partial sum
-  result = ReduceAddCpu(partSum, numBlock);
+  result = ReduceAdd(partSum, numBlock);
 
   // Print munged data
   ElemT mungedData[17];
@@ -169,32 +126,37 @@ Error:
 }
 
 // ************************************
-int main()
-{
-  constexpr size_t minSize = 1;
-  constexpr size_t maxSize = 100;
+//int main()
+//{
+//  constexpr size_t minSize = 15;
+//  constexpr size_t maxSize = 17;
+//  constexpr unsigned threadPerBlock = 8;
+//
+//  for (size_t size{ minSize }; size <= maxSize; size++) {
+//    int* data = new int[size];
+//    for (size_t i = 0; i < size; i++)
+//      data[i] = i;
+//
+//    int result;
+//    cudaError_t cudaStatus = ReduceAddGpu<int>(result, data, size, threadPerBlock);
+//    delete[] data;
+//
+//    cudaStatus = cudaDeviceReset();
+//    if (cudaStatus != cudaSuccess) {
+//      fprintf(stderr, "cudaDeviceReset failed!");
+//      return 1;
+//    }
+//
+//    if (result != (size - 1) * size / 2) {
+//      fprintf(stderr, "Got wrong answer!");
+//      return 1;
+//    } else
+//      fprintf(stderr, "Size = %d passed\n", size);
+//  }
+//
+//  return 0;
+//}
 
-  for (size_t size{ minSize }; size <= maxSize; size++) {
-    int* data = new int[size];
-    for (size_t i = 0; i < size; i++)
-      data[i] = i;
-
-    int result;
-    cudaError_t cudaStatus = ReduceAddGpu<int>(data, size, result);
-    delete[] data;
-
-    cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-      fprintf(stderr, "cudaDeviceReset failed!");
-      return 1;
-    }
-
-    if (result != (size - 1) * size / 2) {
-      fprintf(stderr, "Got wrong answer!");
-      return 1;
-    } else
-      fprintf(stderr, "Size = %d passed\n", size);
-  }
-
-  return 0;
-}
+// Actually create something to like to
+template cudaError_t ReduceAddGpu<int>(
+  int& result, const int* data, size_t numElem, unsigned threadPerBlock);
