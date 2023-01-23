@@ -10,24 +10,25 @@
 #include "GridHelper.cuh"
 
 // ************************************
+// This function assumes that the gird is 1D.
 template<typename ElemT>
   __global__ void AddReduceEarlyTerm(ElemT* partSum, ElemT* data, unsigned elemPerArray)
 {
   // ToDo:  compare speeds with using size_t instead of unsigned
-  unsigned blockNum = BlockNum();
-  unsigned numBlock = GridSize();
+  unsigned blockNum = blockIdx.x;
+  unsigned numBlock = gridDim.x;
 
-  unsigned threadPerBlock = BlockSize();
+  unsigned threadPerBlock = blockDim.x;
   unsigned elemPerBlock = threadPerBlock * 2;
 
-  unsigned blockThread0 = BlockToGlobalThread();
+  unsigned blockThread0 = blockNum * threadPerBlock;
   unsigned blockElem0 = blockThread0 * 2;
 
-  unsigned localThread = LocalThread();
-  unsigned globalThread = GlobalThread();
+  unsigned localThread = threadIdx.x;
+  unsigned globalThread = localThread + blockThread0;
   unsigned glogalElem = 2 * globalThread;
 
-  // This is the portion of the block/array that is active. Shrinks with each iteration.
+  // This is the portion of the block/array that is active ... shrinks with each iteration.
   unsigned numActiveElem, numActiveThread;
 
   // The last block may not start out full
