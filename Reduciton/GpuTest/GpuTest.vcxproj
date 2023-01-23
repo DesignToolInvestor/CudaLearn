@@ -13,6 +13,14 @@
   <ItemGroup>
     <CudaCompile Include="GpuTest.cu" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DevInfo.cuh" />
+    <ClInclude Include="GridHelper.cuh" />
+    <ClInclude Include="EarlyTerm.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GpuTest.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9A7B7A4A-FE77-40CC-A27C-CA91D26F4085}</ProjectGuid>
     <RootNamespace>TestProject</RootNamespace>
@@ -53,6 +61,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(KennethLibDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
