@@ -10,7 +10,7 @@
 #include "cuda_runtime.h"
 
 // ************************************
-dim3 GridSizeSimple(size_t activeThread, unsigned threadPerBlock, cudaDeviceProp devProp)
+dim3 GridSimple1(size_t activeThread, unsigned threadPerBlock, cudaDeviceProp devProp)
 {
   // Compute gird parameters
   const unsigned warpSize = 32;
@@ -19,23 +19,7 @@ dim3 GridSizeSimple(size_t activeThread, unsigned threadPerBlock, cudaDeviceProp
 
   const unsigned numBlock = (allThread - 1) / threadPerBlock + 1;
 
-  unsigned xSize = 1;
-  unsigned ySize = 1;
-  unsigned zSize = 1;
-
-  if (numBlock < devProp.maxGridSize[0])
-    xSize = numBlock;
-  else if (numBlock < devProp.maxGridSize[1] * devProp.maxGridSize[1]) {
-    xSize = warpSize * (unsigned)ceil(sqrt(numBlock) / warpSize);
-    ySize = (numBlock - 1) / xSize + 1;
-  }
-  else {
-    xSize = devProp.maxGridSize[0];
-    ySize = devProp.maxGridSize[1];
-    zSize = (allThread - 1) / xSize / ySize + 1;
-  }
-
-  dim3 result{ xSize,ySize,zSize };
+  dim3 result{ numBlock,1,1 };
   return result;
 }
 
