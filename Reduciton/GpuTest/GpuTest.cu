@@ -42,7 +42,7 @@ cudaError_t ReduceAddGpu(
   }
 
   unsigned numThread = (numElem - 1) / 2 + 1;
-  dim3 grid = GridSizeSimple(numThread, threadPerBlock, devProp);
+  dim3 grid = GridSimple1(numThread, threadPerBlock, devProp);
   unsigned numBlock = grid.x * grid.y * grid.z;
 
   // Allocate GPU buffers for data and partSum  
