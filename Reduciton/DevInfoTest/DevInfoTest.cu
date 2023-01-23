@@ -28,8 +28,9 @@ int main()
       devInfo.CompClassMinor() << '\n';
     cout << "  F32 cores per SM = " << devInfo.NumF32CorePerSm() << '\n';
 
-    cout << "  Max blocks per SM = " << devInfo.MaxBlockPerSm() << '\n';
-    cout << "  Max thread per SM = " << devInfo.MaxThreadPerSm() << '\n\n';
+    cout << "  Max thread per block = " << devInfo.MaxThreadPerBlock() << "\n";
+    cout << "  Max thread per SM = " << devInfo.MaxThreadPerSm() << "\n" ;
+    cout << "  Max blocks per SM = " << devInfo.MaxBlockPerSm() << "\n\n";
 
     // ************************
     constexpr float saftyThread = 1.5;
@@ -42,21 +43,21 @@ int main()
     unsigned idealBlockPerSm = (unsigned)round(sqrt(2 * devInfo.MaxBlockPerSm()));
     unsigned idealThreadPerBlock = (unsigned)ceil(threadPerSm / idealBlockPerSm);
 
-    unsigned theadPerBlock = min(idealBlockPerSm, devInfo.MaxThreadPerBlock());
+    unsigned theadPerBlock = min(idealThreadPerBlock, devInfo.MaxThreadPerBlock());
     unsigned blockPerSm = (unsigned)ceil(threadPerSm / theadPerBlock);
 
     unsigned numBlock = blockPerSm * devInfo.NumSm() * saftyBlock;
     unsigned criticalNumThread = numBlock * theadPerBlock;
 
     cout << "Design heuristics (@ Safety = (1.5, 1), Latency = 10):\n";
-    if (idealThreadPerSm = threadPerSm)
+    if (threadPerSm == idealThreadPerSm)
       cout << "  Threads per SM = " << idealThreadPerSm << '\n';
     else {
       cout << "  Ideal threads per SM = " << idealThreadPerSm << " exceeds max\n";
       cout << "    Actual = " << threadPerSm << '\n';
     }
 
-    if (idealBlockPerSm = blockPerSm) {
+    if (blockPerSm == idealBlockPerSm) {
       cout << "  Block per SM = " << blockPerSm << '\n';
       cout << "  Thread per block = " << theadPerBlock << '\n';
     } else {
