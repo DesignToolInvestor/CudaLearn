@@ -18,145 +18,129 @@
 using namespace std;
 
 // ****************************************************************************
+void Ok(cudaError_t status, char* message)
+{
+  if (status != cudaSuccess) {
+    printf(message);
+    abort();
+  }
+}
+
+// ****************************************************************************
 template<typename ElemT>
-cudaError_t ReduceAddGpu(
-  ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock)
+  __global__ void WarmingUp(ElemT* partSum, ElemT* data, unsigned dataSize)
+{
+  unsigned numBlock = blockDim.x;
+  int tid = blockIdx.x * numBlock + threadIdx.x;
+
+  partSum[tid % numBlock] = tid;
+}
+
+// ****************************************************************************
+template<typename ElemT>
+  void ReduceAddGpu(
+    ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock)
 {
   ElemT* data_d = NULL;
   ElemT* partSum_d = NULL;
-  cudaError_t cudaStatus = cudaSuccess;
 
   // Choose which GPU to run on, change this on a multi-GPU system.
-  cudaStatus = cudaSetDevice(0);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?\n");
-    goto Error;
-  }
+  Ok(cudaSetDevice(0), "No cuda devices.");
 
   // Compute the grid size
   cudaDeviceProp devProp;
-  cudaStatus = cudaGetDeviceProperties(&devProp, 0);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "Didn't get device properties!\n");
-    goto Error;
-  }
+  Ok(cudaGetDeviceProperties(&devProp, 0), "Can't get device properties");
 
   unsigned numThread = (numElem - 1) / 2 + 1;
-  dim3 grid = GridSimple1(numThread, threadPerBlock, devProp);
-  unsigned numBlock = grid.x * grid.y * grid.z;
+  unsigned numBlock = (numThread - 1) / threadPerBlock + 1;
 
   // Allocate GPU buffers for data and partSum  
   const size_t dataBytes = numElem * sizeof(ElemT);
-  cudaStatus = cudaMalloc((void**) &data_d, dataBytes);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMalloc failed!\n");
-    goto Error;
-  }
+  Ok(cudaMalloc((void**)&data_d, dataBytes), "Data allocation failed");
 
   const size_t resultBytes = numBlock * sizeof(ElemT);
-  cudaStatus = cudaMalloc((void**)&partSum_d, resultBytes);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMalloc failed!\n");
-    goto Error;
-  }
+  Ok(cudaMalloc((void**)&partSum_d, resultBytes), "PartSum allocaiton failed");
 
   // Copy input vectors from host memory to GPU buffers.
-  cudaStatus = cudaMemcpy(data_d, data, dataBytes, cudaMemcpyHostToDevice);
+  Ok(cudaMemcpy(data_d, data, dataBytes, cudaMemcpyHostToDevice), "Copying data failed");
+
+  // Create timmers
+  cudaEvent_t preWarm, middle, postReduce;
+  Ok(cudaEventCreate(&preWarm), "Creation of PreWarm event failed");
+  Ok(cudaEventCreate(&middle), "Creation of Midle event failed");
+  Ok(cudaEventCreate(&postReduce), "Creation of PostReduce event failed");
+
+  // **********************************
+  // Do warmup
+  Ok(cudaEventRecord(preWarm), "Recording PreWarm event failed");
+  WarmingUp <<< numBlock, threadPerBlock >>> (partSum_d, data_d, numElem);
+
+  // Check for any errors launching the kernel
+  cudaError_t cudaStatus = cudaGetLastError();
   if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMemcpy failed!\n");
-    goto Error;
+    fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+    abort();
   }
 
-  // Launch a kernel on the GPU with one thread for each element.
-  cudaEvent_t start, stop;
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
+  // waits for the kernel to finish
+  cudaStatus = cudaDeviceSynchronize();
+  if (cudaStatus != cudaSuccess) {
+    fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
+    abort();
+  }
 
-  cudaEventRecord(start);
-  AddReduceEarlyTerm <<< grid, threadPerBlock >>> (partSum_d, data_d, numElem);
+  // compute elapsed time
+  Ok(cudaEventRecord(middle), "Recording middle event failed");
+
+  float warmTime;
+  Ok(cudaEventElapsedTime(&warmTime, preWarm, middle), "Warmup time failed.");
+  warmTime *= 1e-3;
+
+  // **********************************
+  // Do Add Reduce
+  AddReduceEarlyTerm << < numBlock, threadPerBlock >> > (partSum_d, data_d, numElem);
 
   // Check for any errors launching the kernel
   cudaStatus = cudaGetLastError();
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-    goto Error;
+    abort();
   }
 
   // cudaDeviceSynchronize waits for the kernel to finish, and returns
   // any errors encountered during the launch.
   cudaStatus = cudaDeviceSynchronize();
   if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-    goto Error;
+    fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
+    abort();
   }
 
-  cudaEventRecord(stop);
-  float time = cudaEventElapsedTime(&time, start,stop);
-  time *= 1e3;
+  // Deal with time
+  Ok(cudaEventRecord(postReduce), "Recording Stop event failed");
 
-  cout << numElem << ", " << threadPerBlock << ", " << time << '\n';
+  float reduceTime;
+  Ok(cudaEventElapsedTime(&reduceTime, middle, postReduce),"reduce time feaild");
+  reduceTime *= 1e-3;
+
+  cout << numElem << ", " << threadPerBlock << ", " << warmTime << ", " << reduceTime << '\n';
 
   // Copy output vector from GPU buffer to host memory.
   ElemT* partSum = new ElemT[numBlock];
-  cudaStatus = cudaMemcpy(partSum, partSum_d, resultBytes, cudaMemcpyDeviceToHost);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMemcpy failed!\n");
-    goto Error;
-  }
-  delete[] partSum;
-  
-  // Print partial sum
+  Ok(
+    cudaMemcpy(partSum, partSum_d, resultBytes, cudaMemcpyDeviceToHost), 
+    "Copy of PartSum failed");
+
   result = ReduceAdd(partSum, numBlock);
+  delete[] partSum;
 
-  // Print munged data
-  ElemT mungedData[17];
-  cudaStatus = cudaMemcpy(mungedData, data_d, dataBytes, cudaMemcpyDeviceToHost);
-  if (cudaStatus != cudaSuccess) {
-    fprintf(stderr, "cudaMemcpy failed!\n");
-    goto Error;
-  }
-
-Error:
+  // Clean up
   if (data_d != NULL)
     cudaFree(data_d);
   if (partSum_d != NULL)
     cudaFree(partSum_d);
-
-  return cudaStatus;
 }
 
 // ************************************
-//int main()
-//{
-//  constexpr size_t minSize = 15;
-//  constexpr size_t maxSize = 17;
-//  constexpr unsigned threadPerBlock = 8;
-//
-//  for (size_t size{ minSize }; size <= maxSize; size++) {
-//    int* data = new int[size];
-//    for (size_t i = 0; i < size; i++)
-//      data[i] = i;
-//
-//    int result;
-//    cudaError_t cudaStatus = ReduceAddGpu<int>(result, data, size, threadPerBlock);
-//    delete[] data;
-//
-//    cudaStatus = cudaDeviceReset();
-//    if (cudaStatus != cudaSuccess) {
-//      fprintf(stderr, "cudaDeviceReset failed!");
-//      return 1;
-//    }
-//
-//    if (result != (size - 1) * size / 2) {
-//      fprintf(stderr, "Got wrong answer!");
-//      return 1;
-//    } else
-//      fprintf(stderr, "Size = %d passed\n", size);
-//  }
-//
-//  return 0;
-//}
-
 // Actually create something to like to
-template cudaError_t ReduceAddGpu<int>(
+template void ReduceAddGpu<int>(
   int& result, const int* data, size_t numElem, unsigned threadPerBlock);
