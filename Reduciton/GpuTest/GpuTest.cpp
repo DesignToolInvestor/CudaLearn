@@ -26,26 +26,28 @@
 
 // ************************************
 template<typename ElemT>
-cudaError_t ReduceAddGpu(
-  ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock);
+  void ReduceAddGpu(
+    ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock);
 
 // ************************************
 int main()
 {
-  constexpr size_t minSize = 15;
-  constexpr size_t maxSize = 17;
-  constexpr unsigned threadPerBlock = 8;
+  constexpr size_t minSize = 10;
+  constexpr size_t maxSize = 64'000;
+  constexpr float step = 1.3;
+  constexpr unsigned threadPerBlock = 256;
 
-  for (size_t size{ minSize }; size <= maxSize; size++) {
+  size_t size = minSize;
+  while (size <= maxSize) {
     int* data = new int[size];
     for (size_t i = 0; i < size; i++)
       data[i] = i;
 
     int result;
-    cudaError_t cudaStatus = ReduceAddGpu<int>(result, data, size, threadPerBlock);
+    ReduceAddGpu<int>(result, data, size, threadPerBlock);
     delete[] data;
 
-    cudaStatus = cudaDeviceReset();
+    cudaError_t cudaStatus = cudaDeviceReset();
     if (cudaStatus != cudaSuccess) {
       fprintf(stderr, "cudaDeviceReset failed!");
       return 1;
@@ -55,8 +57,8 @@ int main()
       fprintf(stderr, "Got wrong answer!");
       return 1;
     }
-    else
-      fprintf(stderr, "Size = %d passed\n", size);
+
+    size = (size_t)round(step * size);
   }
 
   return 0;
