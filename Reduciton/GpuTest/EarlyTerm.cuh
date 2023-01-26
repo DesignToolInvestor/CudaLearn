@@ -12,51 +12,64 @@
 // ************************************
 // This function assumes that the gird is 1D.
 template<typename ElemT>
-  __global__ void AddReduceEarlyTerm(ElemT* partSum, ElemT* data, unsigned elemPerArray)
+  __global__ void AddReduceEarlyTerm(ElemT* partSum, ElemT* data, unsigned dataSize)
 {
   // ToDo:  compare speeds with using size_t instead of unsigned
-  unsigned blockNum = blockIdx.x;
   unsigned numBlock = gridDim.x;
-
   unsigned threadPerBlock = blockDim.x;
   unsigned elemPerBlock = threadPerBlock * 2;
 
+  unsigned blockNum = blockIdx.x;
   unsigned blockThread0 = blockNum * threadPerBlock;
   unsigned blockElem0 = blockThread0 * 2;
 
   unsigned localThread = threadIdx.x;
   unsigned globalThread = localThread + blockThread0;
-  unsigned glogalElem = 2 * globalThread;
+
+  unsigned globalElem = 2 * blockThread0 + localThread;
+
+  //if (localThread == 0)
+  //  printf("Num of block = %d; Thread per block = %d\n", numBlock, threadPerBlock);
 
   // This is the portion of the block/array that is active ... shrinks with each iteration.
   unsigned numActiveElem, numActiveThread;
 
-  // The last block may not start out full
   if (blockNum < numBlock - 1) {
     numActiveElem = elemPerBlock;
     numActiveThread = threadPerBlock;
   } else {
-    numActiveElem = elemPerArray - 2 * blockThread0;
+    numActiveElem = dataSize - 2 * blockThread0;
     numActiveThread = (numActiveElem + 1) >> 1;
   }
 
+  //if (localThread == 0)
+  //  printf(
+  //    "Blcok num = %d; Num active elems = %d; Num active threads = %d\n", 
+  //    blockNum, numActiveElem, numActiveThread);
+
   // Do this thread's computation
-  unsigned otherLocalElem = localThread + numActiveThread;
-  if (otherLocalElem < numActiveElem) {
-    unsigned otherGlobalElem = blockElem0 + numActiveThread;
-    data[glogalElem] += data[otherGlobalElem];
+  unsigned localCompanionElem = localThread + numActiveThread;
+  if (localCompanionElem < numActiveElem) {
+    unsigned otherGlobalElem = globalElem + numActiveThread;
+    data[globalElem] += data[otherGlobalElem];
 
     __syncthreads();
 
     // Higher numbered threads will finish early
-    while ((localThread < numActiveThread) && (1 < numActiveThread)) {
+    unsigned count = 0;
+    while (((localThread < numActiveThread) && (1 < numActiveThread)) && (count < 1)) {
       unsigned numActiveElem = numActiveThread;
       numActiveThread = (numActiveElem + 1) >> 1;
 
-      otherLocalElem = localThread + numActiveThread;
-      if (otherLocalElem < numActiveElem) {
-        unsigned otherGlobalElem = blockElem0 + numActiveThread;
-        data[glogalElem] += data[otherGlobalElem];
+      //if (localThread == 0)
+      //  printf(
+      //    "Blcok num = %d; Active Elem = %d; Active Thread = %d\n", 
+      //    blockNum, numActiveElem, numActiveThread);
+
+      localCompanionElem = localThread + numActiveThread;
+      if (localCompanionElem < numActiveElem) {
+        unsigned otherGlobalElem = globalElem + numActiveThread;
+        data[globalElem] += data[otherGlobalElem];
       }
       __syncthreads();
     }
@@ -64,5 +77,5 @@ template<typename ElemT>
 
   // copy partSum back
   if (localThread == 0)
-    partSum[blockNum] = data[blockThread0];
+    partSum[blockNum] = data[globalElem];
 }
