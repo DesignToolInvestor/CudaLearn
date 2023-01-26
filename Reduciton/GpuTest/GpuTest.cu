@@ -67,13 +67,16 @@ template<typename ElemT>
   // Create timmers
   cudaEvent_t preWarm, middle, postReduce;
   Ok(cudaEventCreate(&preWarm), "Creation of PreWarm event failed");
-  Ok(cudaEventCreate(&middle), "Creation of Midle event failed");
+  Ok(cudaEventCreate(&middle), "Creation of Middle event failed");
   Ok(cudaEventCreate(&postReduce), "Creation of PostReduce event failed");
 
   // **********************************
   // Do warmup
   Ok(cudaEventRecord(preWarm), "Recording PreWarm event failed");
   WarmingUp <<< numBlock, threadPerBlock >>> (partSum_d, data_d, numElem);
+
+  // compute elapsed time
+  Ok(cudaEventRecord(middle), "Recording middle event failed");
 
   // Check for any errors launching the kernel
   cudaError_t cudaStatus = cudaGetLastError();
@@ -82,23 +85,23 @@ template<typename ElemT>
     abort();
   }
 
-  // waits for the kernel to finish
+  // Wait for the kernel to finish
   cudaStatus = cudaDeviceSynchronize();
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
     abort();
   }
 
-  // compute elapsed time
-  Ok(cudaEventRecord(middle), "Recording middle event failed");
-
   float warmTime;
-  Ok(cudaEventElapsedTime(&warmTime, preWarm, middle), "Warmup time failed.");
+  Ok(cudaEventElapsedTime(&warmTime, preWarm, middle), "Warm up time failed.");
   warmTime *= 1e-3;
 
   // **********************************
   // Do Add Reduce
   AddReduceEarlyTerm << < numBlock, threadPerBlock >> > (partSum_d, data_d, numElem);
+
+  // Deal with time
+  Ok(cudaEventRecord(postReduce), "Recording PostReduce event failed");
 
   // Check for any errors launching the kernel
   cudaStatus = cudaGetLastError();
@@ -107,19 +110,15 @@ template<typename ElemT>
     abort();
   }
 
-  // cudaDeviceSynchronize waits for the kernel to finish, and returns
-  // any errors encountered during the launch.
+  // Wait for the kernel to finish
   cudaStatus = cudaDeviceSynchronize();
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
     abort();
   }
 
-  // Deal with time
-  Ok(cudaEventRecord(postReduce), "Recording Stop event failed");
-
   float reduceTime;
-  Ok(cudaEventElapsedTime(&reduceTime, middle, postReduce),"reduce time feaild");
+  Ok(cudaEventElapsedTime(&reduceTime, middle, postReduce),"reduce time failed");
   reduceTime *= 1e-3;
 
   cout << numElem << ", " << threadPerBlock << ", " << warmTime << ", " << reduceTime << '\n';
