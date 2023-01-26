@@ -9,19 +9,6 @@
 #include <cuda.h>
 #include "cuda_runtime.h"
 
-// ************************************
-dim3 GridSimple1(size_t activeThread, unsigned threadPerBlock, cudaDeviceProp devProp)
-{
-  // Compute gird parameters
-  const unsigned warpSize = 32;
-  const unsigned numWarp = (activeThread - 1) / warpSize + 1;
-  const unsigned allThread = warpSize * numWarp;
-
-  const unsigned numBlock = (allThread - 1) / threadPerBlock + 1;
-
-  dim3 result{ numBlock,1,1 };
-  return result;
-}
 
 // ************************************
 // ToDo:  create template for less than 3 dimensions
