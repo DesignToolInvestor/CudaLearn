@@ -79,7 +79,15 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="GpuAddReduce.cu" />
+    <CudaCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="UtilMiscCokie.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GpuAddReduce.h" />
+    <ClInclude Include="UtilMiscCokie.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
