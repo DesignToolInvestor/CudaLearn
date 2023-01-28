@@ -34,9 +34,9 @@ typedef double CheckT;
 int main()
 {
   constexpr size_t minSize = 10;
-  constexpr float maxSize = 1.05e9;
+  constexpr float maxSize = 200e6 * 1.05;
   constexpr unsigned sampPerDec = 8;
-  constexpr float stepSize = (float)exp(log(10) / sampPerDec);
+  const float stepFact = (float)exp(log(10) / sampPerDec);
 
   constexpr unsigned threadPerBlock = 256;
 
@@ -66,9 +66,9 @@ int main()
     ElemT relError = (ElemT)(((CheckT)result - answer) / answer);
     
     // Print Result
-    cout << size <<  ", " << relError << '\n';
+    //cout << size <<  ", " << relError << '\n';
 
-    size = (size_t)round(step * size);
+    size = (size_t)round(stepFact * size);
   } while (size <= maxSize);
 
   return 0;
