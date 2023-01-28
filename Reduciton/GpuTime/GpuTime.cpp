@@ -34,9 +34,11 @@ typedef double CheckT;
 int main()
 {
   constexpr size_t minSize = 10;
-  constexpr float maxSize = 200e6 * 1.05;
+  constexpr float approxMaxSize = 200e6;
   constexpr unsigned sampPerDec = 8;
-  const float stepFact = (float)exp(log(10) / sampPerDec);
+
+  const double stepFact = exp(log(10) / sampPerDec);
+  const unsigned numIter = (unsigned)round(log(approxMaxSize/minSize) / log(stepFact)) + 1;
 
   constexpr unsigned threadPerBlock = 256;
 
@@ -45,8 +47,9 @@ int main()
   RandSeqFloat rand(0, 1, seed);
 
   // Do loop of increasing sizes
-  size_t size = minSize;
-  do {
+  double aimSize = minSize;
+  for (unsigned iter{ 0 }; iter < numIter; iter++) {
+    unsigned size = (unsigned)round(aimSize);
     vector<float> data(size);
     for (float& elem : data)
       elem = rand();
@@ -68,8 +71,8 @@ int main()
     // Print Result
     //cout << size <<  ", " << relError << '\n';
 
-    size = (size_t)round(stepFact * size);
-  } while (size <= maxSize);
+    aimSize = stepFact * aimSize;
+  };
 
   return 0;
 }
