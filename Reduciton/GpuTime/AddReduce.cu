@@ -11,7 +11,7 @@
 #include "cuda_runtime.h"
 
 #include "../Library/ReduceAdd.h"
-//#include "GridHelper.cuh"
+#include "Timer.cuh"
 #include "EarlyTerm.cuh"
 
 using namespace std;
@@ -139,14 +139,16 @@ void ReduceAddGpu(
   CheckErr(cudaMemcpy(data_d, data, dataBytes, cudaMemcpyHostToDevice), "Copying data failed");
 
   // Do warm up
-  float warmTime;
-  WarmUp(partSum_d, data_d, numElem, numBlock, threadPerBlock, warmTime);
+  //float warmTime;
+  //WarmUp(partSum_d, data_d, numElem, numBlock, threadPerBlock, warmTime);
 
   // Do add reduce
-  float reduceTime;
-  AddReduceEarlyTerm(partSum_d, data_d, numElem, numBlock, threadPerBlock, reduceTime);
+  TickCountT startTicks = ReadTicks_d();
+  float eventTime = 0;
+  AddReduceEarlyTerm(partSum_d, data_d, numElem, numBlock, threadPerBlock, eventTime);
+  float wallTime = TicksToSecs_d(ReadTicks_d() - startTicks);
 
-  printf("%d, %d, %f, %f\n", numElem, threadPerBlock, warmTime, reduceTime);
+  printf("%d, %d, %f, %f\n", numElem, threadPerBlock, eventTime, wallTime);
 
   // Copy output vector from GPU buffer to host memory.
   ElemT* partSum = new ElemT[numBlock];
