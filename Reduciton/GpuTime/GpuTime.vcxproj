@@ -16,6 +16,7 @@
   <ItemGroup>
     <ClInclude Include="EarlyTerm.h" />
     <ClInclude Include="EarlyTerm.cuh" />
+    <ClInclude Include="Timer.cuh" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="EarlyTerm.cu" />
