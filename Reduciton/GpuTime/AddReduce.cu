@@ -120,7 +120,7 @@ void ReduceAddGpu(
   Ok(cudaEventElapsedTime(&reduceTime, middle, postReduce), "reduce time failed");
   reduceTime *= 1e-3;
 
-  printf("%d, %d, %d, %d\n", numElem, threadPerBlock, warmTime, reduceTime);
+  printf("%d, %d, %f, %f\n", numElem, threadPerBlock, warmTime, reduceTime);
 
   // Copy output vector from GPU buffer to host memory.
   ElemT* partSum = new ElemT[numBlock];
