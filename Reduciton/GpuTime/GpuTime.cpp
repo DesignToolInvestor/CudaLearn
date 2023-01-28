@@ -18,8 +18,9 @@
 #include "cuda_runtime.h"
 
 // Kenneth library
-#include "SeedManagement.h"
 #include "RandSeq.h"
+#include "SeedManagement.h"
+#include "UtilMisc.h"
 
 // Project
 #include "../Library/ReduceAdd.h"
@@ -31,6 +32,17 @@ using namespace std;
 typedef float ElemT;
 typedef double CheckT;
 
+TickCountT ReadTicks_d()
+{
+  return ReadTicks();
+}
+
+float TicksToSecs_d(TickCountT ticks)
+{
+  return TicksToSecs(ticks);
+}
+
+// ************************************
 int main()
 {
   constexpr size_t minSize = 10;
