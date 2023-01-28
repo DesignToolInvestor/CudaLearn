@@ -139,8 +139,8 @@ void ReduceAddGpu(
   CheckErr(cudaMemcpy(data_d, data, dataBytes, cudaMemcpyHostToDevice), "Copying data failed");
 
   // Do warm up
-  //float warmTime;
-  //WarmUp(partSum_d, data_d, numElem, numBlock, threadPerBlock, warmTime);
+  float warmTime;
+  WarmUp(partSum_d, data_d, numElem, numBlock, threadPerBlock, warmTime);
 
   // Do add reduce
   TickCountT startTicks = ReadTicks_d();
