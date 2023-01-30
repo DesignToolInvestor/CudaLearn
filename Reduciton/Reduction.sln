@@ -20,13 +20,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Results", "Results", "{ED5B
 	ProjectSection(SolutionItems) = preProject
 		Speed - 3080 Laptop - elapsed warm.txt = Speed - 3080 Laptop - elapsed warm.txt
 		Speed - 3080 Laptop - elapsed.txt = Speed - 3080 Laptop - elapsed.txt
-		Results\Speed - i5 2500K.txt = Results\Speed - i5 2500K.txt
 		Results\Speed - 3080 Laptop - event warm.txt = Results\Speed - 3080 Laptop - event warm.txt
 		Speed - 3080 Laptop - event.txt = Speed - 3080 Laptop - event.txt
+		Results\Speed - i5 2500K.txt = Results\Speed - i5 2500K.txt
 		Results\Speed - R9 5900HX.txt = Results\Speed - R9 5900HX.txt
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GpuTime", "GpuTime\GpuTime.vcxproj", "{27012563-0CB1-4A1E-AF02-6722B2A0A892}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TemplateExample", "TemplateExample\TemplateExample.vcxproj", "{C3BE9D01-F929-4AC2-8E72-0E9859258996}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,6 +70,14 @@ Global
 		{27012563-0CB1-4A1E-AF02-6722B2A0A892}.Release|x64.Build.0 = Release|x64
 		{27012563-0CB1-4A1E-AF02-6722B2A0A892}.Release|x86.ActiveCfg = Release|x64
 		{27012563-0CB1-4A1E-AF02-6722B2A0A892}.Release|x86.Build.0 = Release|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Debug|x64.ActiveCfg = Debug|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Debug|x64.Build.0 = Debug|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Debug|x86.ActiveCfg = Debug|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Debug|x86.Build.0 = Debug|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Release|x64.ActiveCfg = Release|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Release|x64.Build.0 = Release|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Release|x86.ActiveCfg = Release|x64
+		{C3BE9D01-F929-4AC2-8E72-0E9859258996}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
