@@ -5,10 +5,10 @@
 #include <iostream>
 #include <cmath>
 
-#include "SeedManagement.h"
-#include "RandSeq.h"
+#include "../Library/SeedManagement.h"
+#include "../Library/RandSeq.h"
 
-#include "../Library/AddReduceSerial.h"
+#include "../Library/ReduceAdd.h"
 
 using namespace std;
 
@@ -33,11 +33,11 @@ int main()
 
     // Time reduction
     TickCountT start = ReadTicks();
-    float result = ReduceAddCpu<float>(data);    
+    float result = ReduceAdd<float>(&data[0], data.size());
     deltaSec = TicksToSecs(ReadTicks() - start);
 
     // Check accuracy
-    double answer = ReduceAddCpu<float,double>(data);
+    double answer = ReduceAdd<float,double>(&data[0], data.size());
     float relError = (float)(((double)result - answer) / answer);
 
     // Print Result

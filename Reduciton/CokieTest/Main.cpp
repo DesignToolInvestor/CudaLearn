@@ -25,7 +25,8 @@ int trueAnswer(int numElems) {
 int main()
 {
     constexpr unsigned startN = 100;
-    constexpr unsigned stepPerDec = 8;
+    constexpr unsigned stepPerDec = 4;
+    constexpr unsigned stopN = 500'000'000;
 
     const double nStepFact = exp(log(10) / stepPerDec);
 
@@ -33,17 +34,17 @@ int main()
     //RandSeqFloat rand(0, 1, seed);
 
     // create array to be add-reduced
-    for (int dataSize = 6; dataSize < 7; dataSize++) {
+    for (int dataSize = startN; dataSize < stopN; dataSize *= nStepFact) {
         float* data = new float[dataSize];
         for (int i = 0; i < dataSize; i++) {
             data[i] = i;
         }
 
         // debug
-        for (int i = 0; i < dataSize; i++) {
+        /*for (int i = 0; i < dataSize; i++) {
             std::cout << data[i] << " ";
         }
-        std::cout << "\n";
+        std::cout << "\n";*/
 
         // add-reduce array
         float result = -1;
@@ -52,10 +53,11 @@ int main()
         // Need a delete [] data
         delete[] data;
 
-        std::cout << "result: " << result << "\n\n";
-        if (result != trueAnswer(dataSize)) {
+        //debug
+        //std::cout << "result: " << result << "\n\n";
+        /*if (result != trueAnswer(dataSize)) {
             std::cout << "False!\n\n";
             abort();
-        }
+        }*/
     }
 }

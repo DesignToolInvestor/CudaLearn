@@ -27,14 +27,14 @@ __global__ void AddReduceKernel(float* g_idata, float* g_odata, unsigned int n)
 
     // in-place reduction in global memory
     for (int stride = 1; stride < blockDim.x; stride *= 2) {
-        if ((tid % (2 * stride)) == 0) {
+        if (((tid % (2 * stride)) == 0) && ((tid + stride) < blockDim.x)) {
             block[tid] += block[tid + stride];
         }
 
         //debug
-        if (tid == 0) {
+        /*if (tid == 0) {
             printf("stride: %d , blockSize: %d\n", stride, blockDim.x);
-        }
+        }*/
 
         // synchronize within block
         __syncthreads();
@@ -43,7 +43,9 @@ __global__ void AddReduceKernel(float* g_idata, float* g_odata, unsigned int n)
     //write result for this block to global mem
     if (tid == 0) {
         g_odata[blockIdx.x] = block[0];
-        printf("thread %d result: %f \n", tid, *block);
+
+        //debug
+        /*printf("thread %d result: %f \n", tid, *block);*/
     }
 }
 
@@ -62,7 +64,7 @@ cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
     }
 
     // Compute gird parameters
-    const unsigned elemPerBlock = 5;
+    const unsigned elemPerBlock = 1536/2;
     const unsigned numBlock = ((dataSize - 1) / elemPerBlock) + 1;
     const unsigned threadPerBlock = elemPerBlock;
 
@@ -98,7 +100,7 @@ cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
     cudaDeviceSynchronize();
     TickCountT end_ticks = ReadTicks();
     float time_elapsed = TicksToSecs(end_ticks - start_ticks);
-    printf("Kernel timing: %f\n", time_elapsed);
+    printf("%f %d\n", time_elapsed, dataSize);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
