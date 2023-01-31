@@ -69,12 +69,6 @@ int main()
     ElemT result;
     ReduceAddGpu<ElemT>(result, &data[0], size, threadPerBlock);
 
-    cudaError_t cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-      fprintf(stderr, "cudaDeviceReset failed!");
-      return 1;
-    }
-
     // Check accuracy
     assert(size < INT_MAX);
     CheckT answer = ReduceAdd<ElemT, CheckT>(&data[0], (unsigned)size);
