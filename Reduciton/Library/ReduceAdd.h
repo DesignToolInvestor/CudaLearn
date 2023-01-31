@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <span>
-
 template<typename ElemT, typename AccumT = ElemT>
 AccumT ReduceAdd(ElemT* data, unsigned numElem)
 {
