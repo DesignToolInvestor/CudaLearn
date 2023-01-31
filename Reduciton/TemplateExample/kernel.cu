@@ -2,21 +2,24 @@
   K e r n e l . c u
 */
 
+// Modren C++
 #include <cstdlib>
+#include <iostream>
 
-#include <stdio.h>
-
+// Cuda
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+
+using namespace std;
 
 // ****************************************************************************
 template<typename ElemT>
 __global__ void KernalA(ElemT *data, unsigned size)
 {
   unsigned thread = threadIdx.x;
-  unsigned elem = (blockIdx.x * gridDim.x) + thread;
+  unsigned elem = (blockIdx.x * blockDim.x) + thread;
 
-  data[elem] += elem;
+  data[elem] = elem;
 }
 
 // ************************************
@@ -24,19 +27,19 @@ template<typename ElemT>
 __global__ void KernalB(ElemT* data, unsigned size)
 {
   unsigned thread = threadIdx.x;
-  unsigned elem = (blockIdx.x * gridDim.x) + thread;
+  unsigned elem = (blockIdx.x * blockDim.x) + thread;
 
   if ((elem % 2) == 0)
-    data[elem] += elem;
+    data[elem] = elem;
   else
-    data[elem] += -elem;
+    data[elem] = -elem;
 }
 
 // ****************************************************************************
 void CheckErr(cudaError_t status, const char* message)
 {
   if (status != cudaSuccess) {
-    printf(message);
+    cout << message;
     abort();
   }
 }
@@ -65,7 +68,7 @@ void InvokeKern(ElemT* data, unsigned dataElems, unsigned threadPerBlock)
   unsigned numThread = dataElems;
   unsigned numBlock = (unsigned)((numThread + (threadPerBlock - 1)) / threadPerBlock);
 
-  Kern<<<numBlock,numThread>>>(data_d, dataElems);
+  Kern <<<numBlock, threadPerBlock>>>(data_d, dataElems);
 
   // Check for any errors launching the kernel
   cudaError_t cudaStatus = cudaGetLastError();
@@ -94,39 +97,45 @@ void InvokeKern(ElemT* data, unsigned dataElems, unsigned threadPerBlock)
 // ****************************************************************************
 int main()
 {
-    const unsigned dataSize = 2048;
-    const unsigned threadPerBlock = 256;
+  typedef int ElemT;
 
-    float data[dataSize];
+  const unsigned dataSize = 4096;
+  const unsigned threadPerBlock = 256;
 
-    // Initialize data.  This is not sensible, but it demonstrates the use of templates.
-    InvokeKern<float, KernalA<float>>(data, dataSize, threadPerBlock);
+  ElemT data[dataSize];
 
-    // Check the result
-    for (unsigned i{ 0 }; i < dataSize; i++)
-      if (data[i] != i)
-        abort();
+  // Initialize data.  This is not sensible, but it demonstrates the use of templates.
+  InvokeKern<ElemT, KernalA<ElemT>>(data, dataSize, threadPerBlock);
 
-    // Initialize data Method A
-    // This is not sensible kernel, but it demonstrates the use of templates.
-    InvokeKern<float, KernalA<float>>(data, dataSize, threadPerBlock);
+  // Check the result
+  for (unsigned i{ 0 }; i < dataSize; i++)
+    if (data[i] != i)
+      abort();
 
-    // Check the result
-    for (unsigned i{ 0 }; i < dataSize; i++)
-      if (data[i] != i)
-        abort();
+  // Initialize data Method A
+  // This is not sensible kernel, but it demonstrates the use of templates.
+  InvokeKern<ElemT, KernalA<ElemT>>(data, dataSize, threadPerBlock);
 
-    // Initialize data Method B
-    InvokeKern<float, KernalB<float>>(data, dataSize, threadPerBlock);
+  // Check the result
+  for (unsigned i{ 0 }; i < dataSize; i++)
+    if (data[i] != i)
+      abort();
 
-    // Check the result
-    for (unsigned i{ 0 }; i < dataSize; i++)
-      if ((((i % 2) == 0) && (data[i] != i)) || (data[i] != -1))
-        abort();
+  cout << "Kernal A passed test.\n";
 
-    // cudaDeviceReset must be called before exiting in order for profiling and
-    // tracing tools such as Nsight and Visual Profiler to show complete traces.
-    CheckErr(cudaDeviceReset(), "cudaDeviceReset failed!");
+  // Initialize data Method B
+  InvokeKern<ElemT, KernalB<ElemT>>(data, dataSize, threadPerBlock);
 
-    return 0;
+  // Check the result
+  for (unsigned i{ 0 }; i < dataSize; i++)
+    if ((((i % 2) == 0) && (data[i] != i)) || (((i % 2) == 1) && (data[i] != -i)))
+      abort();
+
+  cout << "Kernal B passed test.\n";
+
+  // cudaDeviceReset must be called before exiting in order for profiling and
+  // tracing tools such as Nsight and Visual Profiler to show complete traces.
+  CheckErr(cudaDeviceReset(), "cudaDeviceReset failed!");
+
+  return 0;
 }
