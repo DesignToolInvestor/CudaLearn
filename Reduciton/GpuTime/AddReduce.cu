@@ -10,23 +10,33 @@
 #include <cuda.h>
 #include "cuda_runtime.h"
 
-#include "../Library/ReduceAdd.h"
+//#include "../Library/ReduceAdd.h"
 #include "Timer.cuh"
 #include "EarlyTerm.cuh"
 
 using namespace std;
 
 // ****************************************************************************
+float ReduceAdd(const float* data, size_t numElem)
+{
+  float result = 0;
+  for (unsigned i = 0; i < numElem; i++)
+    result = result + data[i];
+
+  return result;
+}
+
+// ****************************************************************************
 template<typename ElemT>
-__global__ void WarmUp_d(ElemT* partSum, ElemT* data, unsigned dataSize)
+__global__ void WarmUp_d(ElemT* partSum, ElemT* inArray, unsigned dataSize)
 {
   unsigned numBlock = blockDim.x;
   int tid = (blockIdx.x * numBlock) + threadIdx.x;
 
   if ((tid % 2) == 0)
-    data[tid] = tid;
+    inArray[tid] = tid;
   else
-    data[tid] = tid;
+    inArray[tid] = tid;
 
   if (tid < numBlock)
     partSum[tid] = tid;
@@ -45,16 +55,11 @@ void CheckErr(cudaError_t status, const char* message)
 // ************************************
 template<typename ElemT>
 void WarmUp(
-  ElemT* partSum_d, ElemT* data_d, unsigned numElem, 
-  unsigned numBlock, unsigned threadPerBlock, float& time)
+  ElemT* outArray_d, ElemT* inArray_d, size_t numElems, 
+  unsigned numBlock, unsigned threadPerBlock)
 {
-  cudaEvent_t start, stop;
-  CheckErr(cudaEventCreate(&start), "Creation of Start event failed");
-  CheckErr(cudaEventCreate(&stop), "Creation of Stop event failed");
-
-  CheckErr(cudaEventRecord(start), "Recording Start event failed");
-  WarmUp_d<ElemT> <<< numBlock, threadPerBlock >>> (partSum_d, data_d, numElem);
-  CheckErr(cudaEventRecord(stop), "Recording Stop event failed");
+  // launch kernel
+  WarmUp_d<ElemT> <<< numBlock, threadPerBlock >>> (outArray_d, inArray_d, numElems);
 
   // Check for any errors launching the kernel
   cudaError_t cudaStatus = cudaGetLastError();
@@ -69,27 +74,16 @@ void WarmUp(
     fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
     abort();
   }
-
-  // Compute time
-  CheckErr(cudaEventElapsedTime(&time, start, stop), "Elapsed time failed.");
-  time *= 1e-3;
 }
 
 // ************************************
 template<typename ElemT>
 void AddReduceEarlyTerm(
-  ElemT* partSum_d, ElemT* data_d, unsigned numElem,
-  unsigned numBlock, unsigned threadPerBlock, float& time)
+  ElemT* outArray_d, ElemT* inArray_d, size_t numElems,
+  unsigned numBlock, unsigned threadPerBlock)
 {
-  // Setup timers
-  cudaEvent_t start, stop;
-  CheckErr(cudaEventCreate(&start), "Creation of Start event failed");
-  CheckErr(cudaEventCreate(&stop), "Creation of Stop event failed");
-
   // Launch device code
-  CheckErr(cudaEventRecord(start), "Recording Start event failed");
-  AddReduceEarlyTerm<ElemT> <<< numBlock, threadPerBlock >>> (partSum_d, data_d, numElem);
-  CheckErr(cudaEventRecord(stop), "Recording Stop event failed");
+  AddReduceEarlyTerm<ElemT> <<< numBlock, threadPerBlock >>> (outArray_d, inArray_d, numElems);
 
   // Check for any errors launching the kernel
   cudaError_t cudaStatus = cudaGetLastError();
@@ -104,69 +98,74 @@ void AddReduceEarlyTerm(
     fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
     abort();
   }
-
-  // Compute time
-  CheckErr(cudaEventElapsedTime(&time, start, stop), "Elapsed time failed.");
-  time *= 1e-3;
 }
 
 // ****************************************************************************
 template<typename ElemT>
 void ReduceAddGpu(
-  ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock)
+  ElemT& result, const ElemT* inArray, size_t origNumElem, unsigned threadPerBlock)
 {
-  ElemT* data_d = NULL;
-  ElemT* partSum_d = NULL;
+  ElemT* inArray_d = NULL;
+  ElemT* outArray_d = NULL;
 
   // Choose which GPU to run on, change this on a multi-GPU system.
   CheckErr(cudaSetDevice(0), "No cuda devices.");
 
-  // Compute the grid size
-  cudaDeviceProp devProp;
-  CheckErr(cudaGetDeviceProperties(&devProp, 0), "Can't get device properties");
+  // Check if the kernel should be called at all.
+  if (2 * threadPerBlock < origNumElem)
+    result = ReduceAdd(inArray, origNumElem);
+  else {
+    // Start the clock
+    TickCountT startTicks = ReadTicks_d();
 
-  unsigned numThread = (numElem - 1) / 2 + 1;
-  unsigned numBlock = (numThread - 1) / threadPerBlock + 1;
+    // Allocate GPU buffers for inArray
+    const size_t dataBytes = origNumElem * sizeof(ElemT);
+    CheckErr(cudaMalloc((void**)&inArray_d, dataBytes), "Data allocation failed");
 
-  // Allocate GPU buffers for data and partSum  
-  const size_t dataBytes = numElem * sizeof(ElemT);
-  CheckErr(cudaMalloc((void**)&data_d, dataBytes), "Data allocation failed");
+    // Copy inArray from host memory to GPU.
+    CheckErr(cudaMemcpy(inArray_d, inArray, dataBytes, cudaMemcpyHostToDevice), "Copying inArray failed");
 
-  const size_t resultBytes = numBlock * sizeof(ElemT);
-  CheckErr(cudaMalloc((void**)&partSum_d, resultBytes), "PartSum allocation failed");
+    // Recurse until the result is small enough to do in the CPU
+    size_t numElems = origNumElem;
+    unsigned numBlock;
+    size_t outBytes;
 
-  // Copy input vectors from host memory to GPU buffers.
-  CheckErr(cudaMemcpy(data_d, data, dataBytes, cudaMemcpyHostToDevice), "Copying data failed");
+    while (2 * threadPerBlock < numElems) {
+      // Compute launch parameters
+      unsigned numThread = (unsigned)((numElems + 1) >> 1);
+      numBlock = (unsigned)((numThread + threadPerBlock - 1) / threadPerBlock);
 
-  // Do warm up
-  float warmTime;
-  WarmUp(partSum_d, data_d, numElem, numBlock, threadPerBlock, warmTime);
+      // Allocate the output array
+      outBytes = numBlock * sizeof(ElemT);
+      CheckErr(cudaMalloc((void**)&outArray_d, outBytes), "Result allocation failed");
 
-  // Do add reduce
-  TickCountT startTicks = ReadTicks_d();
-  float eventTime = 0;
-  AddReduceEarlyTerm(partSum_d, data_d, numElem, numBlock, threadPerBlock, eventTime);
-  float wallTime = TicksToSecs_d(ReadTicks_d() - startTicks);
+      // Launch the kernel and wait for synchronization
+      AddReduceEarlyTerm(outArray_d, inArray_d, numElems, numBlock, threadPerBlock);
 
-  printf("%d, %d, %f, %f\n", numElem, threadPerBlock, eventTime, wallTime);
+      // Do double-buffering thing
+      CheckErr(cudaFree(inArray_d), "CudaFree failed.");
+      inArray_d = outArray_d;
+      numElems = numBlock;
+    }
 
-  // Copy output vector from GPU buffer to host memory.
-  ElemT* partSum = new ElemT[numBlock];
-  CheckErr(
-    cudaMemcpy(partSum, partSum_d, resultBytes, cudaMemcpyDeviceToHost),
-    "Copy of PartSum failed");
+    // Copy output vector from GPU buffer to host memory.
+    ElemT* outArray = new ElemT[numBlock];
+    CheckErr(
+      cudaMemcpy(outArray, outArray_d, outBytes, cudaMemcpyDeviceToHost),
+      "Copy of OutArray failed");
+    CheckErr(cudaFree(inArray_d), "CudaFree failed.");
 
-  result = ReduceAdd(partSum, numBlock);
-  delete[] partSum;
+    // Add using CPU
+    result = ReduceAdd(outArray, numBlock);
+    delete[] outArray;
 
-  // Clean up
-  if (data_d != NULL)
-    cudaFree(data_d);
-  if (partSum_d != NULL)
-    cudaFree(partSum_d);
+    // Stop the clock
+    float wallTime = TicksToSecs_d(ReadTicks_d() - startTicks);
+    printf("%d, %d, %f\n", origNumElem, threadPerBlock, wallTime);
+  }
 }
 
 // ************************************
 // Actually create something to like to
 template void ReduceAddGpu<float>(
-  float& result, const float* data, size_t numElem, unsigned threadPerBlock);
+  float& result, const float* inArray, size_t inElemsArg, unsigned threadPerBlock);
