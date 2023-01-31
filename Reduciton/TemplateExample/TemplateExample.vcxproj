@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{C3BE9D01-F929-4AC2-8E72-0E9859258996}</ProjectGuid>
     <RootNamespace>CudaExplore</RootNamespace>
+    <ProjectName>TemplateExample</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
