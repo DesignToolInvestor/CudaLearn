@@ -23,9 +23,14 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GpuTime", "GpuTime\GpuTime.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TemplateExample", "TemplateExample\TemplateExample.vcxproj", "{C3BE9D01-F929-4AC2-8E72-0E9859258996}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxitems", "{9E23FB8E-E846-4DC9-9FED-C2A8925F20C1}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Soluation Lib", "Soluation Lib", "{8882B324-933B-4DFE-8B70-5440A652E7CE}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Lib", "Solution Lib", "{BE659F71-E6D8-4239-A83B-280A1F4BCACC}"
+	ProjectSection(SolutionItems) = preProject
+		Library\EarlyTerm.cu = Library\EarlyTerm.cu
+		Library\EarlyTerm.cuh = Library\EarlyTerm.cuh
+		Library\EarlyTerm.h = Library\EarlyTerm.h
+		Library\ReduceAddCuda.cu = Library\ReduceAddCuda.cu
+		Library\ReduceAddCuda.cuh = Library\ReduceAddCuda.cuh
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
