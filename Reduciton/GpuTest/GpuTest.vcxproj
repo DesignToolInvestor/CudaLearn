@@ -11,14 +11,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="GpuTest.cu" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="GridHelper.cuh" />
-    <ClInclude Include="EarlyTermA.cuh" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="GpuTest.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="ReduceAddWrap.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ReduceAddWrap.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9A7B7A4A-FE77-40CC-A27C-CA91D26F4085}</ProjectGuid>
