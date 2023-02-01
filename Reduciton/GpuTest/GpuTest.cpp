@@ -6,6 +6,7 @@
 #include <cmath>
 #include <format>
 #include <iostream>
+//#include <limits>
 #include <random>
 
 // Legacy C
@@ -20,26 +21,46 @@
 #include "SeedManagement.h"
 #include "RandSeq.h"
 
-// Project
+// Solution Library
 #include "../Library/ReduceAdd.h"
-//#include "EarlyTerm.cuh"
+
+// Local to project
+#include "ReduceAddWrap.h"
+
+using namespace std;
 
 // ************************************
-// ToDo: replace with include of EarlyTerm.h
-template<typename ElemT>
-  void ReduceAddGpu(
-    ElemT& result, const ElemT* data, size_t numElem, unsigned threadPerBlock);
+// ToDo:  These are called by ReduceAdd_d, not a good system
+TickCountT ReadTicks_d()
+{
+  return ReadTicks();
+}
+
+float TicksToSecs_d(TickCountT ticks)
+{
+  return TicksToSecs(ticks);
+}
 
 // ************************************
 int main()
 {
-  constexpr size_t minSize = 10;
-  constexpr size_t maxSize = 64'000;
-  const float step = (float)exp(log(10)/4);
-  constexpr unsigned threadPerBlock = 256;
+  // Setup
+  constexpr size_t minSize = 16;
 
+  // This is the minimum array size at which overflow occurs.
+  // Quadratic formula
+  const float maxSize = (1 + sqrt(1 + 8 * (float)INT_MAX)) / 2;
+
+  constexpr unsigned stepPerDouble = 2;
+  const float stepFact = (float)exp(log(2) / stepPerDouble);
+  
+  constexpr unsigned threadPerBlock = 512;
+
+  // Loop
+  float aimSize = minSize;
   size_t size = minSize;
-  while (size <= maxSize) {
+
+  while (aimSize <= maxSize) {
     int* data = new int[size];
 
     assert(size < INT_MAX);
@@ -47,7 +68,7 @@ int main()
       data[i] = (int)i;
 
     int result;
-    ReduceAddGpu<int>(result, data, size, threadPerBlock);
+    ReduceAddWrapper(result, data, size, threadPerBlock);
     delete[] data;
 
     cudaError_t cudaStatus = cudaDeviceReset();
@@ -61,7 +82,7 @@ int main()
       return 1;
     }
 
-    size = (size_t)round(step * size);
+    size = (size_t)round(stepFact * size);
   }
 
   return 0;
