@@ -7,7 +7,7 @@
 //#include <cuda.h>
 #include "cuda_runtime.h"
 //#include "device_launch_parameters.h"
-#include "GridHelper.cuh"
+//#include "GridHelper.cuh"
 
 // ************************************
 // This function assumes that the gird is 1D.
