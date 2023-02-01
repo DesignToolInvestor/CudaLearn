@@ -12,8 +12,8 @@
 #include "cuda_runtime.h"
 
 #include "../Library/ReduceAdd.h"
-#include "GridHelper.cuh"
-#include "EarlyTerm.cuh"
+//#include "GridHelper.cuh"
+#include "EarlyTermA.cuh"
 
 using namespace std;
 

@@ -14,9 +14,8 @@
     <CudaCompile Include="GpuTest.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="DevInfo.cuh" />
     <ClInclude Include="GridHelper.cuh" />
-    <ClInclude Include="EarlyTerm.cuh" />
+    <ClInclude Include="EarlyTermA.cuh" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GpuTest.cpp" />

@@ -112,7 +112,7 @@ void ReduceAddGpu(
   CheckErr(cudaSetDevice(0), "No cuda devices.");
 
   // Check if the kernel should be called at all.
-  if (2 * threadPerBlock < origNumElem)
+  if (origNumElem < 2 * threadPerBlock)
     result = ReduceAdd(inArray, origNumElem);
   else {
     // Start the clock
@@ -130,6 +130,9 @@ void ReduceAddGpu(
     unsigned numBlock;
     size_t outBytes;
 
+    TickCountT stopTicks[10] = { 0 };
+    unsigned level = 0;
+
     while (2 * threadPerBlock < numElems) {
       // Compute launch parameters
       unsigned numThread = (unsigned)((numElems + 1) >> 1);
@@ -141,6 +144,7 @@ void ReduceAddGpu(
 
       // Launch the kernel and wait for synchronization
       AddReduceEarlyTerm(outArray_d, inArray_d, numElems, numBlock, threadPerBlock);
+      stopTicks[level++] = ReadTicks_d();
 
       // Do double-buffering thing
       CheckErr(cudaFree(inArray_d), "CudaFree failed.");
@@ -160,8 +164,10 @@ void ReduceAddGpu(
     delete[] outArray;
 
     // Stop the clock
-    float wallTime = TicksToSecs_d(ReadTicks_d() - startTicks);
-    printf("%d, %d, %f\n", origNumElem, threadPerBlock, wallTime);
+    printf("%d, %d, ", origNumElem, threadPerBlock);
+    for (unsigned i{ 0 }; i < level; i++)
+      printf(", % f", TicksToSecs_d(stopTicks[i] - startTicks));
+    printf("\n");
   }
 }
 
