@@ -1,0 +1,1 @@
+void AddReduceKernel00(float* g_idata, float* g_odata, unsigned int n);

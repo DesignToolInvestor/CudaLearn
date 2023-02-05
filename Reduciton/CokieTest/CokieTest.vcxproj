@@ -80,13 +80,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="GpuAddReduce.cu" />
+    <CudaCompile Include="GpuAddReduceKernel00.cu" />
+    <CudaCompile Include="GpuAddReduceKernel01.cu" />
     <CudaCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="UtilMiscCokie.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="GpuAddReduceKernel00.cuh" />
     <ClInclude Include="GpuAddReduce.h" />
+    <ClInclude Include="GpuAddReduceKernel01.cuh" />
     <ClInclude Include="UtilMiscCokie.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
