@@ -45,7 +45,11 @@ void CheckErr(cudaError_t status, const char* message)
 }
 
 // ************************************
-template<typename ElemT, void (*Kern)(ElemT* data, unsigned dataElems)>
+// Note:  Typedef doesn't work, but using (which defines an alias) will work.
+template<typename ElemT>
+using ArrayInitKernT = void (*)(ElemT* data, unsigned dataElems);
+
+template<typename ElemT, typename ArrayInitKernT<ElemT> Kern>
 void InvokeKern(ElemT* data, unsigned dataElems, unsigned threadPerBlock)
 {
   ElemT* data_d = NULL;
