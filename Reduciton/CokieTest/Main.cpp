@@ -24,9 +24,9 @@ int trueAnswer(int numElems) {
 // ************************************
 int main()
 {
-    constexpr unsigned startN = 100;
+    constexpr unsigned startN = 2;
     constexpr unsigned stepPerDec = 4;
-    constexpr unsigned stopN = 500'000'000;
+    constexpr unsigned stopN = 10;
 
     const double nStepFact = exp(log(10) / stepPerDec);
 

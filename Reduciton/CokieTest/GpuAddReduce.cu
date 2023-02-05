@@ -1,4 +1,5 @@
 #include "GpuAddReduce.h"
+#include "UtilMiscCokie.h"
 #include "GpuAddReduceKernel00.cuh"
 #include "GpuAddReduceKernel01.cuh"
 
