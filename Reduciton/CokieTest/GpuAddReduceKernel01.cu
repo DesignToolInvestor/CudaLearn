@@ -24,10 +24,10 @@ __global__ void GpuAddReduceKernel01(float* g_idata, float* g_odata, unsigned in
     // boundary check
     if (tid >= n) return;
 
-    unsigned int start_stride = ((n + 1) / 2) + 1;
+    unsigned int start_stride = ((n - 1) / 2) + 1;
     // in-place reduction in global memory
-    for (int stride = start_stride; stride >= 1; stride = ((stride + 1) / 2) + 1) {
-        if ((tid + stride) < blockDim.x) {
+    for (int stride = start_stride; stride >= 1; stride = ((stride - 1) / 2) + 1) {
+        if (( ((tid + stride) < blockDim.x) && ((tid + stride) < n) )) {
             block[tid] += block[tid + stride];
         }
 

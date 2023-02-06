@@ -18,7 +18,7 @@ cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
     }
 
     // Compute gird parameters
-    const unsigned elemPerBlock = 1536 / 2;
+    const unsigned elemPerBlock = 10;
     const unsigned numBlock = ((dataSize - 1) / elemPerBlock) + 1;
     const unsigned threadPerBlock = elemPerBlock;
 
@@ -50,8 +50,19 @@ cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
     // Launch a kernel on the GPU with one thread for each element.
     GpuAddReduceKernel01 << < numBlock, threadPerBlock >> > (data_d, partSum_d, dataSize);
 
+    //check for kernel launch error
+    cudaStatus = cudaGetLastError();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+        abort();
+    }
+
     // timing code
-    cudaDeviceSynchronize();
+    cudaStatus = cudaDeviceSynchronize();
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d\n", cudaStatus);
+        abort();
+    }
     TickCountT end_ticks = ReadTicks();
     float time_elapsed = TicksToSecs(end_ticks - start_ticks);
     printf("%f %d\n", time_elapsed, dataSize);
