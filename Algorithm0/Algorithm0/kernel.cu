@@ -6,18 +6,35 @@
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
+//Todo: make this a template function
+__device__
+float* index2D(float* arr, int num_rows, int num_cols, int row_indx, int col_indx) {
+    int index = (num_cols * row_indx) + col_indx;
+    return &arr[index];
+}
+
+__device__
+float max(float a, float b) {
+    if (a < b) {
+        return b;
+    }
+    else return a;
+}
 
 // prob_matrix is output
 // haps is every haplotype, where each row is a haplotype
-__global__ void lsf_kernel(float *prob_matrix, float *haps, float *gmap, const int target, const int num_snp, const int num_hap, const float read_error)
+__global__ void lsf_kernel(float *prob_matrix, float *haps, float *gmap,
+    const int target, const int num_snp, const int num_hap, const float read_error)
 {
     __shared__ float buff0[num_hap];
     __shared__ float buff1[num_hap];
 
     float* currColumn = buff0;
-    float* prevColumn = buff1
+    float* prevColumn = buff1;
 
     float probRead = 0;
+    float probTrans = 0;
+    float outLogLike = 0;
     int thread = threadIdx.x;
 
     // load first buffer
@@ -25,39 +42,44 @@ __global__ void lsf_kernel(float *prob_matrix, float *haps, float *gmap, const i
     __syncthreads();
 
     // Do each column
-    for (int snp_num = 1; snp_num < num_snp; snp_num++)
+    for (int snp_num = 1; snp_num < num_snp; snp_num++) {
         // calculate log likelihoods
         for (int hap_num = 0; hap_num < num_hap; hap_num++) {
+            // don't compare target to itself, or it will always match itself
             if (hap_num != target) {
-                if (haps[target][snp_num] == haps[hap_num][snp_num])
+                // get emission probability
+                if (*index2D(haps, num_hap, num_snp, target, snp_num)
+                    == *index2D(haps, num_hap, num_snp, hap_num, snp_num))
                     probRead = 1 - read_error;
                 else
                     probRead = read_error;
 
+                // get transition probability
                 if (target == hap_num)
-                    logProbTrans = logOneMinusExpMorgan[i];
+                    probTrans = gmap[snp_num] - gmap[snp_num - 1];
                 else
-                    logProbTrans = morgan[i] + weight[j];
+                    probTrans = 1 - (gmap[snp_num] - gmap[snp_num - 1]);
 
-                ourLogLike =
-                    max(ourLogLike, prevColumn[hap_num] + logProbTrans + logProbRead);
-
-                //write to curr_prob
-                curr_prob[] = logLike[k, i];
+                // update current max probability explanation for observation
+                outLogLike =
+                    max(outLogLike, prevColumn[hap_num] + probTrans + probRead);
             }
 
             currColumn[thread] = outLogLike;
-            __syncthread();
+            __syncthreads();
 
-            prob_matrix[snp_num][thread] = currColumn[thread];
-            Swap(prevColumn, currColun);
+            // copy curr column from shared memory out to global probability matrix
+            *index2D(prob_matrix, num_hap, num_snp, snp_num, thread) = currColumn[thread];
+            // swap prevColumn with currColumn in our circular buffer
+            float* temp = prevColumn;
+            prevColumn = currColumn;
+            currColumn = temp;
 
-            currColumn[thread] = prob_matrix[][];
-            __syncthread();
+            __syncthreads();
         }
 
         // sync threads
-        __syncthreads
+        __syncthreads();
     }
 }
 
