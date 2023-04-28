@@ -10,9 +10,8 @@
 #include "device_launch_parameters.h"
 
 // Parker Library
-// ToDo: Why is it not picking up environment variable $ParkerLibDir
-#include "F:\\Users\\Kenne.DESKTOP-BT6VROU\\Documents\\GitHub\\ParkerLib\\MappedFile.h"
-#include "F:\\Users\\Kenne.DESKTOP-BT6VROU\\Documents\\GitHub\\ParkerLib\\OldRand.h"
+#include "MappedFile.h"
+#include "OldRand.h"
 
 // Parker Cuda Library
 #include "../../../Lib/ErrorCheck.cuh"
