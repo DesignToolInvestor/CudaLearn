@@ -108,14 +108,6 @@ int main()
 
   ElemT data[dataSize];
 
-  // Initialize data.  This is not sensible, but it demonstrates the use of templates.
-  InvokeKern<ElemT, KernalA<ElemT>>(data, dataSize, threadPerBlock);
-
-  // Check the result
-  for (unsigned i{ 0 }; i < dataSize; i++)
-    if (data[i] != i)
-      abort();
-
   // Initialize data Method A
   // This is not sensible kernel, but it demonstrates the use of templates.
   InvokeKern<ElemT, KernalA<ElemT>>(data, dataSize, threadPerBlock);
