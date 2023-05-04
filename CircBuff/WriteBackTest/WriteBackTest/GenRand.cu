@@ -72,9 +72,9 @@ void GenRandSetUp(
 
   // Allocate GPU buffer and startSeed
   const unsigned buffSize = buffHeight * buffWidth * sizeof(unsigned);
-  CheckErr(cudaMalloc((void**)&buff, buffSize), "Buffer allocation failed.");
+  CheckErr(cudaMalloc(buff, buffSize), "Buffer allocation failed.");
 
-  CheckErr(cudaMalloc((void**)&startSeed, buffHeight * sizeof(unsigned)), "StartSeed allocation failed.");
+  CheckErr(cudaMalloc(startSeed, buffHeight * sizeof(unsigned)), "StartSeed allocation failed.");
 }
 
 // ************************************
