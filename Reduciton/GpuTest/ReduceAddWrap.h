@@ -4,4 +4,6 @@
 
 #pragma once
 
-void ReduceAddWrapper(int& result, const int* inArray, size_t numElems, unsigned threadPerBlock);
+template<typename ElemT>
+  void ReduceAddWrap(
+    ElemT& result, const ElemT* inArray, size_t numElems, unsigned threadPerBlock);
