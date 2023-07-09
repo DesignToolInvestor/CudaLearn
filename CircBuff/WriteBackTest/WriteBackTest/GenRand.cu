@@ -27,36 +27,36 @@ inline __device__ unsigned RandLoc(unsigned seed)
 
 // ****************************
 __global__ void GenRandFirst(
-  unsigned* buff, unsigned* startSeed, const unsigned numThread, const unsigned buffWidth)
+  unsigned* buff, unsigned* startSeedGpu, const unsigned numThread, const unsigned buffWidth)
 {
   unsigned thread = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (thread < numThread) {
     unsigned* mySeq = buff + (thread * buffWidth);
 
-    mySeq[0] = startSeed[thread];
+    mySeq[0] = startSeedGpu[thread];
 
     for (unsigned i = 1; i < (buffWidth - 1); i++)
       mySeq[i] = RandLoc(mySeq[i - 1]);
 
-    startSeed[thread] = mySeq[buffWidth - 1] = RandLoc(mySeq[buffWidth - 2]);
+    startSeedGpu[thread] = mySeq[buffWidth - 1] = RandLoc(mySeq[buffWidth - 2]);
   }
 }
 
 __global__ void GenRandCont(
-  unsigned* buff, unsigned *startSeed, const unsigned numThread, const unsigned buffWidth)
+  unsigned* buff, unsigned *startSeedGpu, const unsigned numThread, const unsigned buffWidth)
 {
   unsigned thread = threadIdx.x + blockIdx.x * blockDim.x;
 
   if (thread < numThread) {
     unsigned* mySeq = buff + (thread * buffWidth);
 
-    mySeq[0] = RandLoc(startSeed[thread]);
+    mySeq[0] = RandLoc(startSeedGpu[thread]);
 
     for (unsigned i = 1; i < (buffWidth - 1); i++)
       mySeq[i] = RandLoc(mySeq[i - 1]);
 
-    startSeed[thread] = mySeq[buffWidth - 1] = RandLoc(mySeq[buffWidth - 2]);
+    startSeedGpu[thread] = mySeq[buffWidth - 1] = RandLoc(mySeq[buffWidth - 2]);
   }
 }
 
@@ -64,30 +64,39 @@ __global__ void GenRandCont(
 // Setup
 // ToDo:  Change to passing a pointer by reference
 void GenRandSetUp(
-  unsigned** buff, unsigned** startSeed,
+  unsigned** buff, unsigned** startSeedGpu,
   const unsigned buffHeight, const unsigned buffWidth, const unsigned threadPerBlock)
 {
   // Choose which GPU to run on, change this on a multi-GPU system.
   CheckErr(cudaSetDevice(0), "No cuda devices");
 
-  // Allocate GPU buffer and startSeed
+  // Allocate GPU buffer and startSeedGpu
   const unsigned buffSize = buffHeight * buffWidth * sizeof(unsigned);
   CheckErr(cudaMalloc((void**)&buff, buffSize), "Buffer allocation failed.");
 
-  CheckErr(cudaMalloc((void**)&startSeed, buffHeight * sizeof(unsigned)), "StartSeed allocation failed.");
+  CheckErr(cudaMalloc((void**)&startSeedGpu, buffHeight * sizeof(unsigned)), "StartSeed allocation failed.");
 }
 
 // ************************************
 // Generate random numbers
 void GenRand(
   unsigned result[], const unsigned numRand, const unsigned masterSeed,
-  unsigned* buff, unsigned* startSeed,
+  unsigned* buff, unsigned* startSeedGpu,
   const unsigned buffHeight, const unsigned buffWidth, const unsigned threadPerBlock)
 {
-  // Fill startSeed
-  startSeed[0] = masterSeed;
+  // Generate start seed on CPU
+  unsigned* startSeedCpu = new unsigned[buffHeight];
+  startSeedGpu[0] = masterSeed;
   for (unsigned i = 0; i < buffHeight; i++)
-    startSeed[i] = RandTurboPascal(startSeed[i - 1]);
+    startSeedCpu[i] = RandTurboPascal(startSeedGpu[i - 1]);
+
+  // Copy start seed to GPU
+  CheckErr(
+    cudaMemcpy(startSeedGpu, startSeedCpu, buffHeight * sizeof(unsigned), cudaMemcpyHostToDevice),
+    "Error loading start seed");
+
+  // Free start seed on CPU
+  delete[] startSeedCpu;
 
   // Compute grid size
   const unsigned randPerBuff = buffHeight * buffWidth;
@@ -97,7 +106,7 @@ void GenRand(
   const unsigned numBlock = (buffHeight - 1) / threadPerBlock + 1;
 
   // Launch kernel for first buffer
-  GenRandFirst <<<numBlock, threadPerBlock>>> (buff,startSeed, buffHeight,buffWidth);
+  GenRandFirst <<<numBlock, threadPerBlock>>> (buff,startSeedGpu, buffHeight,buffWidth);
   CheckErr(cudaGetLastError());
 
   const unsigned moveSize = max(numRand, buffSize) * sizeof(unsigned);
@@ -107,7 +116,7 @@ void GenRand(
 
   // Do the kernels for the middle buffers
   for (unsigned buffNum = 1; buffNum < (numBuff - 1); buffNum++) {
-    GenRandCont <<<numBlock, threadPerBlock>>> (buff, startSeed, buffHeight, buffWidth);
+    GenRandCont <<<numBlock, threadPerBlock>>> (buff, startSeedGpu, buffHeight, buffWidth);
     CheckErr(cudaGetLastError());
 
     CheckErr(
@@ -117,7 +126,7 @@ void GenRand(
 
   // Do the kernel for the last buffer
   if (numBuff == 1) {
-    GenRandCont <<<numBlock, threadPerBlock>>> (buff, startSeed, buffHeight, buffWidth);
+    GenRandCont <<<numBlock, threadPerBlock>>> (buff, startSeedGpu, buffHeight, buffWidth);
     CheckErr(cudaGetLastError());
 
     const unsigned moveSize = (numRand - numBuff * randPerBuff) * sizeof(unsigned);
@@ -129,13 +138,13 @@ void GenRand(
 
 // ************************************************************
 // Shutdown
-void GenRandShutDown(unsigned* buff, unsigned* startSeed)
+void GenRandShutDown(unsigned* buff, unsigned* startSeedGpu)
 {
   // Wait for last memory copy to finish
   CheckErr(cudaDeviceSynchronize(), "Synchronization failure.");
 
   cudaFree(buff);
-  cudaFree(startSeed);
+  cudaFree(startSeedGpu);
 }
 
 // ************************************************************
@@ -155,12 +164,12 @@ int main()
 
   // Generate random numbers
   unsigned* buff;
-  unsigned* startSeed;
+  unsigned* startSeedGpu;
 
-  GenRandSetUp(&buff, &startSeed, buffHeight, buffWidth, threadPerBlock);
+  GenRandSetUp(&buff, &startSeedGpu, buffHeight, buffWidth, threadPerBlock);
 
-  GenRand(fileAddr, numRand, masterSeed, buff, startSeed, buffHeight, buffWidth, threadPerBlock);
-  GenRandShutDown(buff, startSeed);
+  GenRand(fileAddr, numRand, masterSeed, buff, startSeedGpu, buffHeight, buffWidth, threadPerBlock);
+  GenRandShutDown(buff, startSeedGpu);
 
   // End
   return 0;
