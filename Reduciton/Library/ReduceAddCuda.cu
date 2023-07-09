@@ -142,7 +142,7 @@ void ReduceAddCuda(
     TickCountT stopTicks[10] = { 0 };
     unsigned level = 0;
 
-    while (2 * threadPerBlock < numElems) {
+    while (2 * threadPerBlock <= numElems) {
       // Compute launch parameters
       unsigned numThread = (unsigned)((numElems + 1) >> 1);
       numBlock = (unsigned)((numThread + threadPerBlock - 1) / threadPerBlock);
