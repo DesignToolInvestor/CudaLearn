@@ -68,7 +68,7 @@ int main()
       data[i] = (int)i;
 
     int result;
-    ReduceAddWrapper(result, data, size, threadPerBlock);
+    ReduceAddWrap<int>(result, data, size, threadPerBlock);
     delete[] data;
 
     cudaError_t cudaStatus = cudaDeviceReset();
