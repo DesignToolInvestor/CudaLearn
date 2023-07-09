@@ -6,42 +6,46 @@
 
 cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
 
-__global__ void addKernel(int *c, const int *a, const int *b)
+__global__ void randGenKernel(int* results, int numRandsPerThread,
+    int *dev_threadSeeds, const int A, const int B, const int C)
 {
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
+    int thread = threadIdx.x;
+    int threadSeed = dev_threadSeeds[thread];
+
+    int numRandsSoFar = 0;
+    int outputRowIndex = numRandsPerThread * thread;
+    int threadCurrSeed = dev_threadSeeds[thread];
+
+    for (int i = 0; i < numRandsPerThread; i++) {
+        results[outputRowIndex + i] = (A * threadCurrSeed + B) % C;
+    }
 }
 
 int main()
 {
-    const int arraySize = 5;
-    const int a[arraySize] = { 1, 2, 3, 4, 5 };
-    const int b[arraySize] = { 10, 20, 30, 40, 50 };
-    int c[arraySize] = { 0 };
+    const int numThreads = 100;
+    const int numRandsPerThread = 100;
+    const int masterSeed = 4;
 
-    // Add vectors in parallel.
-    cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addWithCuda failed!");
-        return 1;
-    }
+    const unsigned A = 134'775'813;
+    const unsigned B = 4;
+    const unsigned C = 1;
 
-    printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-        c[0], c[1], c[2], c[3], c[4]);
+    int threadSeeds[numThreads] = {0};
+    int results[numThreads][numRandsPerThread] = {};
 
-    // cudaDeviceReset must be called before exiting in order for profiling and
-    // tracing tools such as Nsight and Visual Profiler to show complete traces.
-    cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceReset failed!");
-        return 1;
-    }
+    cudaError_t result;
+
+    // call kernel
+    result = RandGenCuda(results, A, C, numThreads, numRandsPerThread, masterSeed, threadSeeds);
+
 
     return 0;
 }
 
 // Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
+cudaError_t RandGenCuda(int** results, const unsigned A, const unsigned C, const int numThreads, const int numRandsPerThread,
+    const int masterSeed, int* threadSeeds)
 {
     int *dev_a = 0;
     int *dev_b = 0;
@@ -55,40 +59,28 @@ cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
         goto Error;
     }
 
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
+    // Allocate GPU buffers for one vector and one matrix (input, output)    .
+    cudaStatus = cudaMalloc((void**)&dev_threadSeeds, numThreads * sizeof(int));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
+    cudaStatus = cudaMalloc((void**)&dev_b, dev_results * sizeof(int));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
+    // Copy input vector from host memory to GPU buffers.
+    cudaStatus = cudaMemcpy(dev_threadSeeds, threadSeeds, numThreads * sizeof(int), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
     // Launch a kernel on the GPU with one thread for each element.
-    addKernel<<<1, size>>>(dev_c, dev_a, dev_b);
+    randGenKernel<<<1, numThreads>>>(dev_results, numRandsPerThread,dev_threadSeeds, A, B, C);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -106,7 +98,7 @@ cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
     }
 
     // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(results, dev_results, numThreads * sizeof(int), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
