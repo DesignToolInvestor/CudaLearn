@@ -2,7 +2,7 @@
   K e r n e l . c u
 */
 
-// Modren C++
+// Modern C++
 #include <cstdlib>
 #include <iostream>
 
