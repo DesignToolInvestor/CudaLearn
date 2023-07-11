@@ -12,7 +12,7 @@
 #include <random>
 
 
-__global__ void GpuAddReduceKernel01(float* g_idata, float* g_odata, unsigned int n)
+__global__ void GpuAddReduceKernel01(float* g_idata, float* g_odata, unsigned int arrSize)
 {
     // set thread ID
     unsigned int tid = threadIdx.x;
@@ -22,22 +22,30 @@ __global__ void GpuAddReduceKernel01(float* g_idata, float* g_odata, unsigned in
     float* block = g_idata + blockIdx.x * blockDim.x;
 
     // boundary check
-    if (tid >= n) return;
+    if (tid >= arrSize) return;
 
-    unsigned int start_stride = ((n - 1) / 2) + 1;
+    unsigned int activeDataSize = arrSize;
+    unsigned int startStride = ((arrSize - 1) / 2) + 1;
     // in-place reduction in global memory
-    for (int stride = start_stride; stride >= 1; stride = ((stride - 1) / 2) + 1) {
-        if (( ((tid + stride) < blockDim.x) && ((tid + stride) < n) )) {
-            block[tid] += block[tid + stride];
+    int loopCount = 0;
+    for (int stride = startStride; (activeDataSize > 1) && (loopCount < 100); stride = ((stride - 1) / 2) + 1) {
+        int companionThread = tid + stride;
+        if ( (companionThread < blockDim.x) && (companionThread < activeDataSize) ) {
+            block[tid] += block[companionThread];
         }
 
         //debug
         /*if (tid == 0) {
             printf("stride: %d , blockSize: %d\n", stride, blockDim.x);
         }*/
+        
 
         // synchronize within block
         __syncthreads();
+
+        activeDataSize = stride;
+
+        loopCount++;
     }
 
     //write result for this block to global mem

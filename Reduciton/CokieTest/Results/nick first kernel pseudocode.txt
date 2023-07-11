@@ -1,0 +1,43 @@
+__global__
+void li_stephens_forward (hap, ) {
+	__shared__ float even_prev_snp_probs[num_haplotypes];
+	__shared__ float even_curr_snp_probs[num_haplotypes];
+
+	//load into shared arrays, only on first step
+
+
+	for (int i = 0; i < num_snps; i++) {
+		//decide which shared array is prev, which is curr array
+		//assign alias
+		if (i % 2 == 0) {
+			prev_prob = even_prev_snp_probs;
+			curr_prob = even_curr_snp_probs;
+		}
+		else {
+			prev_prob = even_curr_snp_probs;
+			curr_prob = even_prev_snp_probs;
+		}
+
+		//calculate log likelihood
+		for (int j = 0; j < num_haplotypes; j++) {
+			if (read[k] == hap[k, j])
+  				logProbRead = oneMinusLogReadErr;
+			else
+  				probRead = logReadErr;
+
+			if (i == j)
+  				logProbTrans = logOneMinusExpMorgan[i]);
+			else
+  				logProbTrans = morgan[i] + weight[j];
+
+			logLike[k, i] = 
+		  		max(logLike[k, i], logLike[k - 1, j] + logProbTrans + logProbRead);
+
+			//write to curr_prob
+			curr_prob[] = logLike[k, i];
+		}
+
+		__syncthreads();
+	}
+
+}

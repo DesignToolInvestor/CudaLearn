@@ -4,7 +4,7 @@
 #include "GpuAddReduceKernel01.cuh"
 
 template<typename ElemT>
-cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
+cudaError_t ReduceAddGpu(ElemT& result, const ElemT* data, int dataSize, int blockSize)
 {
     ElemT* data_d = NULL;
     ElemT* partSum_d = NULL;
@@ -18,9 +18,8 @@ cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
     }
 
     // Compute gird parameters
-    const unsigned elemPerBlock = 10;
-    const unsigned numBlock = ((dataSize - 1) / elemPerBlock) + 1;
-    const unsigned threadPerBlock = elemPerBlock;
+    const unsigned numBlock = ((dataSize - 1) / blockSize) + 1;
+    const unsigned threadPerBlock = blockSize;
 
     // Allocate GPU buffers for data and partSum  
     const size_t dataBytes = dataSize * sizeof(ElemT);
@@ -65,7 +64,7 @@ cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result)
     }
     TickCountT end_ticks = ReadTicks();
     float time_elapsed = TicksToSecs(end_ticks - start_ticks);
-    printf("%f %d\n", time_elapsed, dataSize);
+    printf("time in secs: %f, data size: %d\n", time_elapsed, dataSize);
 
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
@@ -117,4 +116,4 @@ Error:
     return cudaStatus;
 }
 
-template cudaError_t ReduceAddGpu<float>(const float* data, int dataSize, float& result);
+template cudaError_t ReduceAddGpu<float>(float& result, const float* data, int dataSize, int blockSize);
