@@ -24,17 +24,20 @@ int trueAnswer(int numElems) {
 // ************************************
 int main()
 {
-    constexpr unsigned startN = 5;
-    constexpr unsigned stepPerDec = 4;
-    constexpr unsigned stopN = 6;
+    const int blockSize = 512;
 
-    const double nStepFact = exp(log(10) / stepPerDec);
+    constexpr unsigned startN = 1'000'000;
+    constexpr unsigned stepPerDec = 2;
+    constexpr unsigned stopN = 100'000'000;
+
+    const double nStepFact = (float)exp(log(10) / stepPerDec);
+    //const double nStepFact = 1;
 
     //const int seed = TimeSeed(6)();
     //RandSeqFloat rand(0, 1, seed);
 
     // create array to be add-reduced
-    for (int dataSize = startN; dataSize < stopN; dataSize *= nStepFact) {
+    for (int dataSize = startN; dataSize <= stopN; dataSize *= nStepFact) {
         float* data = new float[dataSize];
         for (int i = 0; i < dataSize; i++) {
             data[i] = i;
@@ -48,16 +51,16 @@ int main()
 
         // add-reduce array
         float result = -1;
-        cudaError_t status = ReduceAddGpu<float>(data, dataSize, result);
+        cudaError_t status = ReduceAddGpu<float>(result, data, dataSize, blockSize);
 
         // Need a delete [] data
         delete[] data;
 
         //debug
-        //std::cout << "result: " << result << "\n\n";
-        /*if (result != trueAnswer(dataSize)) {
-            std::cout << "False!\n\n";
-            abort();
-        }*/
+        std::cout << "data size: " << dataSize << "\n";
+        std::cout << "result: " << result << "\n";
+        float trueAns = trueAnswer(dataSize);
+        float error = (trueAns - result) / trueAns;
+        std::cout << "true answer: " << trueAns << " error: " << error << "\n\n";
     }
 }

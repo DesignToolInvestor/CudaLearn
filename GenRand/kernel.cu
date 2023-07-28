@@ -30,24 +30,55 @@ inline unsigned NextSeed(unsigned seed)
   return (A * seed + B);
 }
 
+void RandGenCPU(unsigned* result, int masterSeed, int numThread, int randPerThread,
+    int numRandNums) {
+    unsigned* threadStartSeeds = new unsigned[numThread];
+    unsigned startSeedVal = masterSeed;
+    unsigned currSeedVal;
+    int index;
+
+    for (int j = 0; j < numThread; j++) {
+        startSeedVal = threadStartSeeds[j] = NextSeed(startSeedVal);
+
+        index = j * randPerThread;
+        result[index] = currSeedVal = startSeedVal;
+
+        for (int i = 1; i < randPerThread; i++) {
+            index = (j * randPerThread) + i;
+            if (index < numRandNums) {
+                currSeedVal = result[index] = NextSeed(currSeedVal);
+            }
+        }
+    }
+}
+
 // ************************************
-__global__ void RandGenKern(unsigned* results, unsigned* threadSeed, int randPerThread)
+__global__ void RandGenKern(unsigned* results, unsigned* threadSeed, int randPerThread,
+    int numRandNums)
 {
   int thread = threadIdx.x;
 
   unsigned rowStart = randPerThread * thread;
   unsigned seed = threadSeed[thread];
 
-  for (int i = 0; i < randPerThread; i++)
+  // calculate new loop end (in case we've already reached desired amount of random numbers)
+  int loopSize = randPerThread;
+  if ((rowStart + randPerThread) > numRandNums) {
+      loopSize = numRandNums - rowStart;
+  }
+
+  //debug
+  printf("thread: %d, loopend: %d, row start: %d, thread seed: %u\n", thread, loopSize, rowStart, seed);
+
+  for (int i = 0; i < loopSize; i++)
     seed = results[rowStart + i] = NextSeedDev(seed);
 }
 
 // ************************************
 cudaError_t RandGenLaunch(
-  unsigned* result, const unsigned masterSeed, const int numThread, const int randPerThread)
+  unsigned* result, const unsigned masterSeed, const int numThread, const int randPerThread,
+    const int numRandNums)
 {
-  const unsigned numResult = numThread * randPerThread;
-
   // Need to be declared here because of the goto's
   unsigned* threadSeed = new unsigned[numThread];
   unsigned seed;
@@ -62,7 +93,7 @@ cudaError_t RandGenLaunch(
 
   // Allocate space on the GPU
   unsigned* resultDev;
-  cudaStatus = cudaMalloc((void**)&resultDev, numResult * sizeof(unsigned));
+  cudaStatus = cudaMalloc((void**)&resultDev, numRandNums * sizeof(unsigned));
   
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMalloc failed!");
@@ -91,7 +122,7 @@ cudaError_t RandGenLaunch(
   }
 
   // Launch a kernel on the GPU with one thread for each element.
-  RandGenKern <<<1, numThread>>> (resultDev, threadSeedDev, randPerThread);
+  RandGenKern <<<1, numThread>>> (resultDev, threadSeedDev, randPerThread, numRandNums);
 
   // Check for any errors launching the kernel
   cudaStatus = cudaGetLastError();
@@ -109,7 +140,7 @@ cudaError_t RandGenLaunch(
   }
 
   // Copy output vector from GPU buffer to host memory.
-  cudaStatus = cudaMemcpy(result, resultDev, numResult * sizeof(int), cudaMemcpyDeviceToHost);
+  cudaStatus = cudaMemcpy(result, resultDev, numRandNums * sizeof(int), cudaMemcpyDeviceToHost);
   if (cudaStatus != cudaSuccess) {
     fprintf(stderr, "cudaMemcpy failed!");
     goto Error;
@@ -128,20 +159,40 @@ Error:
 int main()
 {
   // core parameters
-  const int numThread = 100;
-  const int randPerThread = 100;
+    const int randPerThread = 10;
+    const int numRandNums = 101;
+
+    // Derived paramiters
+  const int numThread = ((numRandNums - 1) / randPerThread) + 1;
   const unsigned masterSeed = 4;
 
   // Derived constants
-  const int numResult = numThread * randPerThread;
-  unsigned result[numResult] = { 0 };
+  unsigned result[numRandNums] = { 0 };
+  unsigned resultTest[numRandNums] = { 0 }; 
 
   // call kernel
-  cudaError_t status = RandGenLaunch(result, masterSeed, numThread, randPerThread);
-  if (status == cudaSuccess)
-    cout << "No error\n";
-  else
-    cout << "Error code = " << status << "\n";
+  cudaError_t status = RandGenLaunch(result, masterSeed, numThread, randPerThread, numRandNums);
+  if (status != cudaSuccess)
+      cout << "Error code = " << status << "\n";
+
+  // call CPU test
+  RandGenCPU(resultTest, masterSeed, numThread, randPerThread, numRandNums);
+
+  // check GPU with test
+  for (int i = 0; i < numRandNums; i++) {
+      cout << result[i] << " ";
+      if (i % 10 == 9) {
+          cout << "\n";
+      }
+
+      if (result[i] != resultTest[i]) {
+          abort();
+      }
+  }
+  cout << "\n";
+
+  cout << "No Error";
 
   return 0;
+
 }

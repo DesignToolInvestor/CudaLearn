@@ -14,4 +14,4 @@
 #include "../Library/ReduceAdd.h"
 
 template<typename ElemT>
-cudaError_t ReduceAddGpu(const ElemT* data, int dataSize, ElemT& result);
+cudaError_t ReduceAddGpu(ElemT& result, const ElemT* data, int dataSize, int blockSize);
