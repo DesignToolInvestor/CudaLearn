@@ -55,6 +55,9 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
+      <AdditionalDeps>
+      </AdditionalDeps>
+      <Include>$(ParkerLibDir);F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\ParkerLib</Include>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
