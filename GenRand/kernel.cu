@@ -2,13 +2,18 @@
   G e n R a n d . c u
 */
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-//#include <stdio.h>
 
 // C++ files
 #include <iostream>
+
+// Cuda specific files
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+// ParkerLib Files
+//#include "F:\Users\Kenne.DESKTOP-BT6VROU\Documents\GitHub\ParkerLib\Timer.h"
+#include "Timer.h"
+//#include "MappedFile.h"
 
 using namespace std;
 
@@ -159,40 +164,47 @@ Error:
 int main()
 {
   // core parameters
-    const int randPerThread = 10;
-    const int numRandNums = 101;
+  const int randPerThread = 10;
+  const int numRandNums = 101;
 
-    // Derived paramiters
+  // Derived parameters
   const int numThread = ((numRandNums - 1) / randPerThread) + 1;
   const unsigned masterSeed = 4;
 
   // Derived constants
   unsigned result[numRandNums] = { 0 };
-  unsigned resultTest[numRandNums] = { 0 }; 
+  unsigned resultTest[numRandNums] = { 0 };
 
   // call kernel
   cudaError_t status = RandGenLaunch(result, masterSeed, numThread, randPerThread, numRandNums);
   if (status != cudaSuccess)
-      cout << "Error code = " << status << "\n";
+    cout << "Error code = " << status << "\n";
 
   // call CPU test
   RandGenCPU(resultTest, masterSeed, numThread, randPerThread, numRandNums);
 
   // check GPU with test
-  for (int i = 0; i < numRandNums; i++) {
-      cout << result[i] << " ";
-      if (i % 10 == 9) {
-          cout << "\n";
-      }
+  TickCountT start = ReadTicks();
 
-      if (result[i] != resultTest[i]) {
-          abort();
-      }
+  for (int i = 0; i < numRandNums; i++) {
+    cout << result[i] << " ";
+    if (i % 10 == 9)
+      cout << "\n";
+
+    if (result[i] != resultTest[i])
+      abort();
   }
   cout << "\n";
+
+  // Print elapsed time for test
+  TickCountT stop = ReadTicks();
+  float seconds = TicksToSecs(stop - start);
+
+  cout << "Elapsed time for test" << seconds << "\n";
+
+  // Exit
 
   cout << "No Error";
 
   return 0;
-
 }
